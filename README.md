@@ -1,11 +1,11 @@
-# 🛡️ Advanced Network Scanner
+# 🛡️ Escáner Avanzado de Red
 
 <div align="center">
 
 ![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
-![Nmap](https://img.shields.io/badge/Nmap-Required-red.svg)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
-![Status](https://img.shields.io/badge/Status-Production-brightgreen.svg)
+![Nmap](https://img.shields.io/badge/Nmap-Requerido-red.svg)
+![Licencia](https://img.shields.io/badge/Licencia-MIT-green.svg)
+![Estado](https://img.shields.io/badge/Estado-Producción-brightgreen.svg)
 
 *Una plataforma completa de análisis de red y ciberseguridad defensiva*
 
@@ -21,37 +21,37 @@
 
 ## 🎯 Descripción
 
-**Advanced Network Scanner** es una plataforma completa de ciberseguridad defensiva que combina escaneo de red, detección de vulnerabilidades, análisis de seguridad y monitoreo continuo. Desarrollado con Python y basado en Nmap, ofrece tanto interfaces CLI como web para diferentes necesidades operacionales.
+**Escáner Avanzado de Red** es una plataforma completa de ciberseguridad defensiva que combina escaneo de red, detección de vulnerabilidades, análisis de seguridad y monitoreo continuo. Desarrollado con Python y basado en Nmap, ofrece tanto interfaces de línea de comandos como web para diferentes necesidades operacionales.
 
 ### ⚡ Características Principales
 
-- 🔍 **Escaneo Avanzado**: TCP, UDP, scripts NSE y detección de OS
+- 🔍 **Escaneo Avanzado**: TCP, UDP, scripts NSE y detección de SO
 - ⚡ **Paralelización**: Escaneos concurrentes para redes grandes  
-- 🌐 **Dashboard Web**: Interfaz gráfica con estadísticas en tiempo real
+- 🌐 **Panel Web**: Interfaz gráfica con estadísticas en tiempo real
 - 🚀 **API REST**: Integración con otros sistemas de seguridad
 - 🔍 **Detector CVE**: Base de conocimiento local + API NVD
 - 📢 **Sistema de Alertas**: Email, Slack, webhooks automáticos
 - 📊 **Análisis Histórico**: Base de datos SQLite con comparaciones
-- 🎛️ **Gestión Centralizada**: Startup manager unificado
+- 🎛️ **Gestión Centralizada**: Administrador de inicio unificado
 
 ## 🏗️ Arquitectura
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   CLI Scanner   │    │  Web Dashboard   │    │   API Server    │
-│   (Port 5000)   │    │   (Port 5000)    │    │   (Port 5001)   │
+│  Escáner CLI    │    │   Panel Web      │    │ Servidor API    │
+│   (Puerto CLI)  │    │  (Puerto 5000)   │    │  (Puerto 5001)  │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
          │                       │                       │
          └───────────────────────┼───────────────────────┘
                                  │
               ┌──────────────────────────────────┐
-              │         Core Engine              │
+              │      Motor Principal             │
               ├──────────────────────────────────┤
-              │  • Parallel Scanner              │
-              │  • CVE Detector                  │
-              │  • Alert System                  │
-              │  • NSE Analyzer                  │
-              │  • SQLite Database               │
+              │  • Escáner Paralelo              │
+              │  • Detector CVE                  │
+              │  • Sistema Alertas               │
+              │  • Analizador NSE                │
+              │  • Base de Datos SQLite          │
               └──────────────────────────────────┘
 ```
 
@@ -61,14 +61,14 @@
 
 - **Python 3.8+**
 - **Nmap** instalado y accesible desde PATH
-- **Permisos sudo** (opcional, para detección de OS)
+- **Permisos sudo** (opcional, para detección de SO)
 
 ### Instalación
 
 ```bash
 # Clonar repositorio
-git clone https://github.com/tu-usuario/advanced-network-scanner.git
-cd advanced-network-scanner
+git clone https://github.com/tu-usuario/escaner-avanzado-red.git
+cd escaner-avanzado-red
 
 # Instalar dependencias
 pip install -r requirements.txt
@@ -95,7 +95,7 @@ nmap --version
 
 ## 💻 Uso Rápido
 
-### 🎛️ Startup Manager (Recomendado)
+### 🎛️ Administrador de Inicio (Recomendado)
 
 ```bash
 # Ver estado del sistema
@@ -105,12 +105,12 @@ python startup.py status
 python startup.py scan 192.168.1.0/24
 
 # Escaneo avanzado
-python startup.py scan 10.0.0.0/16 -t both -o results -f json
+python startup.py scan 10.0.0.0/16 -t both -o resultados -f json
 
-# Dashboard web
+# Panel web
 python startup.py web
 
-# API REST server  
+# Servidor API REST
 python startup.py api
 
 # Todos los servicios
@@ -120,7 +120,7 @@ python startup.py all
 python startup.py help
 ```
 
-### 🔍 Scanner CLI Directo
+### 🔍 Escáner CLI Directo
 
 ```bash
 # Escaneo TCP con scripts NSE
@@ -139,15 +139,15 @@ python startup.py help
 ./scanner_v2.py --stats
 ```
 
-## 🌐 Dashboard Web
+## 🌐 Panel Web
 
-El dashboard proporciona una interfaz visual completa para monitoreo y análisis:
+El panel proporciona una interfaz visual completa para monitoreo y análisis:
 
 **Características:**
-- 📊 **Gráficos Interactivos**: Timeline de actividad, distribución de alertas
+- 📊 **Gráficos Interactivos**: Línea de tiempo de actividad, distribución de alertas
 - 📈 **Estadísticas en Tiempo Real**: Hosts, vulnerabilidades, servicios
 - 🔍 **Tablas Dinámicas**: Escaneos recientes, alertas activas
-- 📱 **Responsive Design**: Compatible con dispositivos móviles
+- 📱 **Diseño Responsivo**: Compatible con dispositivos móviles
 
 **Acceso:** http://127.0.0.1:5000
 
@@ -182,7 +182,7 @@ GET /api/v1/vulnerabilities          # Vulnerabilidades detectadas
 ### Ejemplo de Uso
 
 ```bash
-# Crear escaneo asincrono
+# Crear escaneo asíncrono
 curl -X POST http://127.0.0.1:5001/api/v1/scans \
   -H "Content-Type: application/json" \
   -d '{
@@ -232,7 +232,7 @@ notifications:
   email:
     enabled: false
     smtp_server: "smtp.gmail.com"
-    recipients: ["admin@company.com"]
+    recipients: ["admin@empresa.com"]
   
   slack:
     enabled: false
@@ -241,7 +241,7 @@ notifications:
 # Seguridad
 security:
   api_key_required: false
-  api_key: "your-secure-api-key"
+  api_key: "tu-clave-api-segura"
 ```
 
 ## 🔒 Características de Seguridad
@@ -250,7 +250,7 @@ security:
 - **Base CVE Local**: Conocimiento de vulnerabilidades críticas
 - **Integración NVD**: Consulta automática a la base nacional
 - **Análisis NSE**: Scripts de Nmap para detección avanzada
-- **Scoring CVSS**: Clasificación automática por severidad
+- **Puntuación CVSS**: Clasificación automática por severidad
 
 ### Sistema de Alertas
 - **Reglas Configurables**: Condiciones personalizables
@@ -259,7 +259,7 @@ security:
 - **Historial Completo**: Auditoría de todas las alertas
 
 ### Análisis de Servicios
-- **Fingerprinting**: Identificación de servicios y versiones  
+- **Identificación**: Identificación de servicios y versiones  
 - **Protocolo Inseguro**: Detección automática (Telnet, FTP, etc.)
 - **Configuración Débil**: Análisis SSL/TLS, credenciales por defecto
 - **Superficie de Ataque**: Mapeo completo de puertos expuestos
@@ -268,35 +268,35 @@ security:
 
 ### 🏢 Empresarial
 - **Auditorías de Red**: Escaneos programados y reportes
-- **Monitoreo Continuo**: Dashboard para equipos de seguridad  
-- **Gestión de Vulnerabilidades**: Tracking y remediation
-- **Compliance**: Reportes para auditorías y certificaciones
+- **Monitoreo Continuo**: Panel para equipos de seguridad  
+- **Gestión de Vulnerabilidades**: Seguimiento y remediación
+- **Cumplimiento**: Reportes para auditorías y certificaciones
 
 ### 🔬 Investigación
 - **Análisis Forense**: Investigación de incidentes de red
-- **Threat Hunting**: Búsqueda proactiva de amenazas
-- **Pentesting**: Reconocimiento autorizado de infraestructura
+- **Búsqueda de Amenazas**: Búsqueda proactiva de amenazas
+- **Pruebas de Penetración**: Reconocimiento autorizado de infraestructura
 - **Educación**: Laboratorios de ciberseguridad
 
 ### 🛡️ Defensivo
 - **Detección de Intrusos**: Identificación de hosts no autorizados
 - **Cambio de Configuración**: Monitoreo de modificaciones
-- **Hardening**: Validación de configuraciones seguras
-- **Incident Response**: Análisis rápido durante incidentes
+- **Endurecimiento**: Validación de configuraciones seguras
+- **Respuesta a Incidentes**: Análisis rápido durante incidentes
 
-## 🧪 Testing
+## 🧪 Pruebas
 
 ```bash
-# Ejecutar tests unitarios
+# Ejecutar pruebas unitarias
 python -m pytest tests/
 
-# Test de integración
+# Pruebas de integración
 python -m pytest tests/integration/
 
-# Test de cobertura
+# Pruebas de cobertura
 python -m pytest --cov=scanner tests/
 
-# Test de rendimiento
+# Pruebas de rendimiento
 python tests/performance_test.py
 ```
 
@@ -305,22 +305,22 @@ python tests/performance_test.py
 ### Estructura del Proyecto
 
 ```
-advanced-network-scanner/
+escaner-avanzado-red/
 ├── 📁 core/                   # Módulos principales
-│   ├── scanner_v2.py          # Scanner CLI principal
+│   ├── scanner_v2.py          # Escáner CLI principal
 │   ├── parallel_scanner.py    # Motor paralelo
 │   ├── cve_detector.py        # Detector CVE
 │   ├── alert_system.py        # Sistema alertas
 │   └── nse_analyzer.py        # Analizador NSE
-├── 📁 web/                    # Dashboard web
+├── 📁 web/                    # Panel web
 │   ├── web_dashboard.py       # Aplicación Flask
-│   └── templates/             # Templates HTML
+│   └── templates/             # Plantillas HTML
 ├── 📁 api/                    # API REST
 │   └── api_server.py          # Servidor API
 ├── 📁 config/                 # Configuraciones
 │   └── config.yaml            # Configuración principal
 ├── 📁 docs/                   # Documentación
-├── 📁 tests/                  # Tests automatizados
+├── 📁 tests/                  # Pruebas automatizadas
 ├── startup.py                 # Gestor principal
 └── requirements.txt           # Dependencias
 ```
@@ -329,8 +329,8 @@ advanced-network-scanner/
 
 | Componente | Descripción | Puerto |
 |------------|-------------|--------|
-| `scanner_v2.py` | Scanner CLI con funciones avanzadas | - |
-| `web_dashboard.py` | Dashboard web interactivo | 5000 |
+| `scanner_v2.py` | Escáner CLI con funciones avanzadas | - |
+| `web_dashboard.py` | Panel web interactivo | 5000 |
 | `api_server.py` | API REST para integraciones | 5001 |
 | `parallel_scanner.py` | Motor de escaneo paralelo | - |
 | `cve_detector.py` | Detector de vulnerabilidades | - |
@@ -340,7 +340,7 @@ advanced-network-scanner/
 
 ¡Las contribuciones son bienvenidas! Por favor:
 
-1. Fork el repositorio
+1. Haz Fork del repositorio
 2. Crea una rama feature (`git checkout -b feature/nueva-funcionalidad`)
 3. Commit tus cambios (`git commit -am 'Agregar nueva funcionalidad'`)
 4. Push a la rama (`git push origin feature/nueva-funcionalidad`)  
@@ -348,20 +348,20 @@ advanced-network-scanner/
 
 Ver [CONTRIBUTING.md](CONTRIBUTING.md) para más detalles.
 
-## 📋 Roadmap
+## 📋 Hoja de Ruta
 
-Ver [TODO.md](TODO.md) para el roadmap completo de funcionalidades futuras.
+Ver [TODO.md](TODO.md) para la hoja de ruta completa de funcionalidades futuras.
 
 ### Próximas Características
 
-- 🐳 **Containerización**: Docker y Kubernetes
-- ☁️ **Cloud Integration**: AWS, Azure, GCP
+- 🐳 **Contenedorización**: Docker y Kubernetes
+- ☁️ **Integración Cloud**: AWS, Azure, GCP
 - 📊 **Machine Learning**: Detección de anomalías
-- 🔗 **SIEM Integration**: Splunk, ELK, QRadar
-- 📱 **Mobile App**: Aplicación móvil
-- 🎨 **Themes**: Temas personalizables
+- 🔗 **Integración SIEM**: Splunk, ELK, QRadar
+- 📱 **App Móvil**: Aplicación móvil
+- 🎨 **Temas**: Temas personalizables
 
-## 📈 Changelog
+## 📈 Registro de Cambios
 
 Ver [CHANGELOG.md](CHANGELOG.md) para el historial completo de cambios.
 
@@ -389,18 +389,18 @@ Este proyecto está licenciado bajo la Licencia MIT. Ver [LICENSE](LICENSE) para
 
 ## 👨‍💻 Autor
 
-**Tu Nombre**
+**Eduardo Hurtado**
 - 🌐 Portfolio: [tu-portfolio.com](https://tu-portfolio.com)
 - 💼 LinkedIn: [tu-linkedin](https://linkedin.com/in/tu-perfil)
-- 📧 Email: tu-email@dominio.com
+- 📧 Email: contacto@eduardohurtado.info
 - 🐱 GitHub: [@tu-usuario](https://github.com/tu-usuario)
 
 ## 🙏 Reconocimientos
 
-- **Nmap Project**: Por la herramienta de escaneo base
-- **Python Community**: Por las excelentes librerías
+- **Proyecto Nmap**: Por la herramienta de escaneo base
+- **Comunidad Python**: Por las excelentes librerías
 - **NIST NVD**: Por la base de datos de vulnerabilidades
-- **Cybersecurity Community**: Por el feedback y contribuciones
+- **Comunidad de Ciberseguridad**: Por el feedback y contribuciones
 
 ---
 
