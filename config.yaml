@@ -1,0 +1,171 @@
+# Configuración del Scanner de Red
+# =================================
+
+# Configuración general de escaneo
+scan:
+  # Tipo de escaneo por defecto: tcp, udp, both
+  default_scan_type: "tcp"
+  
+  # Argumentos de Nmap por defecto
+  default_tcp_args: "-sV -T4 --open"
+  default_udp_args: "-sU -T4 --open --top-ports 1000"
+  
+  # Timeout en segundos para escaneos
+  timeout: 300
+  
+  # Intentar detección de OS (requiere root)
+  os_detection: true
+  
+  # Usar scripts NSE por defecto
+  use_nse_scripts: true
+  
+  # Scripts NSE personalizados a ejecutar
+  nse_scripts:
+    - "vuln"
+    - "safe"
+    - "default"
+    - "discovery"
+
+# Configuración de paralelización
+parallel:
+  # Número máximo de workers para escaneos paralelos
+  max_workers: 20
+  
+  # Habilitar paralelización por defecto
+  enabled: true
+  
+  # Timeout por host individual
+  host_timeout: 60
+
+# Configuración de salida
+output:
+  # Formatos disponibles: json, csv, txt, html
+  default_format: "json"
+  
+  # Directorio para guardar resultados
+  output_dir: "./results"
+  
+  # Incluir timestamp en nombres de archivo
+  timestamp_files: true
+  
+  # Guardar automáticamente los resultados
+  auto_save: true
+
+# Base de datos
+database:
+  # Archivo de base de datos SQLite
+  db_file: "./scanner_history.db"
+  
+  # Habilitar almacenamiento en BD
+  enabled: true
+  
+  # Días para mantener historial (0 = ilimitado)
+  retention_days: 90
+
+# Configuración de display
+display:
+  # Mostrar progreso con spinner
+  show_progress: true
+  
+  # Mostrar estadísticas detalladas
+  verbose_stats: true
+  
+  # Colores en la salida
+  use_colors: true
+  
+  # Mostrar banners de servicios
+  show_banners: true
+
+# Configuración de red
+network:
+  # Rangos de red permitidos (whitelist)
+  allowed_ranges:
+    - "192.168.0.0/16"
+    - "10.0.0.0/8"
+    - "172.16.0.0/12"
+    - "127.0.0.1/32"
+  
+  # Rangos prohibidos (blacklist)
+  forbidden_ranges: []
+  
+  # Máximo número de hosts a escanear simultáneamente
+  max_concurrent_hosts: 50
+
+# Configuración avanzada
+advanced:
+  # Usar detección de firewall/WAF
+  firewall_detection: false
+  
+  # Intentos de reconexión en caso de fallo
+  retry_attempts: 2
+  
+  # Delay entre intentos (segundos)
+  retry_delay: 5
+  
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  log_level: "INFO"
+  
+  # Archivo de log
+  log_file: "./scanner.log"
+
+# Configuración de alertas
+alerts:
+  # Habilitar alertas
+  enabled: false
+  
+  # Servicios críticos que generan alertas
+  critical_services:
+    - "telnet"
+    - "ftp"
+    - "rsh"
+    - "rlogin"
+  
+  # Puertos críticos abiertos
+  critical_ports:
+    - 21    # FTP
+    - 23    # Telnet
+    - 135   # RPC
+    - 445   # SMB
+    - 1433  # SQL Server
+    - 3389  # RDP
+
+# Configuración de notificaciones
+notifications:
+  email:
+    enabled: false
+    smtp_server: "smtp.gmail.com"
+    smtp_port: 587
+    username: "your-email@gmail.com"
+    password: "your-app-password"
+    from_email: "scanner@yourcompany.com"
+    recipients:
+      - "admin@yourcompany.com"
+      - "security@yourcompany.com"
+  
+  slack:
+    enabled: false
+    webhook_url: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+  
+  webhook:
+    enabled: false
+    url: "https://your-webhook-endpoint.com/alerts"
+    headers:
+      Content-Type: "application/json"
+      Authorization: "Bearer your-token"
+
+# Configuración del dashboard web
+web:
+  host: "127.0.0.1"
+  port: 5000
+  debug: false
+
+# Configuración de la API REST
+api:
+  host: "127.0.0.1"
+  port: 5001
+  debug: false
+  
+# Configuración de seguridad
+security:
+  api_key_required: false
+  api_key: "scanner-api-key-2024"

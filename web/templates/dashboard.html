@@ -1,0 +1,400 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Scanner de Red{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-tachometer-alt me-2 text-primary"></i>
+        Dashboard
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="refresh-stats">
+                <i class="fas fa-sync-alt me-1"></i>
+                Actualizar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading indicator -->
+<div class="loading" id="loading">
+    <div class="spinner-border" role="status">
+        <span class="visually-hidden">Cargando...</span>
+    </div>
+    <p class="mt-2">Cargando datos...</p>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4" id="stats-cards" style="display: none;">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card border-left-primary">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Total Escaneos
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-white" id="total-scans">0</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-search fa-2x text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card border-left-success">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Hosts Únicos
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-white" id="unique-hosts">0</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-server fa-2x text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card border-left-warning">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Alertas (24h)
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-white" id="recent-alerts">0</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card border-left-danger">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                            CVEs Críticos
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-white" id="critical-cves">0</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-bug fa-2x text-danger"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4" id="charts-section" style="display: none;">
+    <div class="col-xl-8 col-lg-7">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-chart-area me-1"></i>
+                Actividad de Escaneos (Últimos 30 días)
+            </div>
+            <div class="card-body">
+                <div id="scans-timeline-chart" style="height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4 col-lg-5">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-chart-bar me-1"></i>
+                Alertas por Severidad
+            </div>
+            <div class="card-body">
+                <div id="alerts-severity-chart" style="height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row" id="recent-activity" style="display: none;">
+    <div class="col-xl-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-history me-1"></i>
+                Escaneos Recientes
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover" id="recent-scans-table">
+                        <thead>
+                            <tr>
+                                <th>Red</th>
+                                <th>Tipo</th>
+                                <th>Hosts</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="5" class="text-center">
+                                    <div class="spinner-border spinner-border-sm me-2"></div>
+                                    Cargando escaneos...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-exclamation-circle me-1"></i>
+                Alertas Recientes
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover" id="recent-alerts-table">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>Severidad</th>
+                                <th>Host</th>
+                                <th>Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="4" class="text-center">
+                                    <div class="spinner-border spinner-border-sm me-2"></div>
+                                    Cargando alertas...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Services Chart -->
+<div class="row" id="services-section" style="display: none;">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-chart-pie me-1"></i>
+                Top 10 Servicios Detectados
+            </div>
+            <div class="card-body">
+                <div id="services-chart" style="height: 400px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboardData();
+    
+    // Refresh button
+    document.getElementById('refresh-stats').addEventListener('click', function() {
+        loadDashboardData();
+    });
+});
+
+function showLoading() {
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('stats-cards').style.display = 'none';
+    document.getElementById('charts-section').style.display = 'none';
+    document.getElementById('recent-activity').style.display = 'none';
+    document.getElementById('services-section').style.display = 'none';
+}
+
+function hideLoading() {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('stats-cards').style.display = 'flex';
+    document.getElementById('charts-section').style.display = 'flex';
+    document.getElementById('recent-activity').style.display = 'flex';
+    document.getElementById('services-section').style.display = 'block';
+}
+
+async function loadDashboardData() {
+    showLoading();
+    
+    try {
+        // Load statistics
+        const statsResponse = await fetch('/api/statistics');
+        const statsData = await statsResponse.json();
+        
+        updateStatistics(statsData);
+        
+        // Load recent scans
+        const scansResponse = await fetch('/api/scans/recent?limit=5');
+        const scansData = await scansResponse.json();
+        
+        updateRecentScansTable(scansData);
+        
+        // Load recent alerts
+        const alertsResponse = await fetch('/api/alerts/recent?hours=24');
+        const alertsData = await alertsResponse.json();
+        
+        updateRecentAlertsTable(alertsData);
+        
+        // Load charts
+        await loadCharts();
+        
+        hideLoading();
+        
+    } catch (error) {
+        console.error('Error loading dashboard data:', error);
+        hideLoading();
+        showToast('Error cargando datos del dashboard', 'danger');
+    }
+}
+
+function updateStatistics(data) {
+    const scanStats = data.scan_stats || {};
+    const alertStats = data.alert_stats || {};
+    const cveStats = data.cve_stats || {};
+    
+    document.getElementById('total-scans').textContent = scanStats.total_scans || 0;
+    document.getElementById('unique-hosts').textContent = scanStats.unique_hosts || 0;
+    document.getElementById('recent-alerts').textContent = alertStats.recent_24h || 0;
+    document.getElementById('critical-cves').textContent = (alertStats.by_severity && alertStats.by_severity.critical) || 0;
+}
+
+function updateRecentScansTable(scans) {
+    const tbody = document.querySelector('#recent-scans-table tbody');
+    
+    if (scans.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No hay escaneos recientes</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    scans.forEach(scan => {
+        const date = new Date(scan.timestamp).toLocaleString('es-ES');
+        const scanTypeClass = {
+            'tcp': 'badge bg-primary',
+            'udp': 'badge bg-info',
+            'both': 'badge bg-warning text-dark'
+        }[scan.scan_type] || 'badge bg-secondary';
+        
+        html += `
+            <tr>
+                <td><code>${scan.network}</code></td>
+                <td><span class="${scanTypeClass}">${scan.scan_type.toUpperCase()}</span></td>
+                <td>${scan.active_hosts}/${scan.total_hosts}</td>
+                <td><small>${date}</small></td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewScanDetails(${scan.id})">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+function updateRecentAlertsTable(alerts) {
+    const tbody = document.querySelector('#recent-alerts-table tbody');
+    
+    if (alerts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No hay alertas recientes</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    alerts.slice(0, 5).forEach(alert => {
+        const date = new Date(alert.timestamp).toLocaleString('es-ES');
+        const severityClass = {
+            'critical': 'badge badge-critical',
+            'high': 'badge badge-high',
+            'medium': 'badge badge-medium',
+            'low': 'badge badge-low'
+        }[alert.severity] || 'badge bg-secondary';
+        
+        html += `
+            <tr ${alert.acknowledged ? 'class="table-secondary"' : ''}>
+                <td>${alert.title}</td>
+                <td><span class="${severityClass}">${alert.severity.toUpperCase()}</span></td>
+                <td><code>${alert.host}</code></td>
+                <td><small>${date}</small></td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+async function loadCharts() {
+    try {
+        // Scans timeline chart
+        const timelineResponse = await fetch('/api/charts/scans_timeline');
+        const timelineData = await timelineResponse.json();
+        Plotly.newPlot('scans-timeline-chart', timelineData.data, timelineData.layout, {responsive: true});
+        
+        // Alerts severity chart
+        const severityResponse = await fetch('/api/charts/alerts_severity');
+        const severityData = await severityResponse.json();
+        Plotly.newPlot('alerts-severity-chart', severityData.data, severityData.layout, {responsive: true});
+        
+        // Services chart
+        const servicesResponse = await fetch('/api/charts/top_services');
+        const servicesData = await servicesResponse.json();
+        Plotly.newPlot('services-chart', servicesData.data, servicesData.layout, {responsive: true});
+        
+    } catch (error) {
+        console.error('Error loading charts:', error);
+    }
+}
+
+function viewScanDetails(scanId) {
+    // Redirect to scan details page
+    window.location.href = `/scans#scan-${scanId}`;
+}
+</script>
+
+<style>
+.border-left-primary {
+    border-left: 0.25rem solid #00b894 !important;
+}
+
+.border-left-success {
+    border-left: 0.25rem solid #28a745 !important;
+}
+
+.border-left-warning {
+    border-left: 0.25rem solid #ffc107 !important;
+}
+
+.border-left-danger {
+    border-left: 0.25rem solid #dc3545 !important;
+}
+
+.text-xs {
+    font-size: 0.7rem;
+}
+</style>
+{% endblock %}
