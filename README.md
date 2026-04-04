@@ -1,413 +1,162 @@
-# 🛡️ Escáner Avanzado de Red
+# Escáner Avanzado de Red
 
-<div align="center">
-
-![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
-![Nmap](https://img.shields.io/badge/Nmap-Requerido-red.svg)
-![Licencia](https://img.shields.io/badge/Licencia-MIT-green.svg)
-![Estado](https://img.shields.io/badge/Estado-Producción-brightgreen.svg)
-
-*Una plataforma completa de análisis de red y ciberseguridad defensiva*
-
-[Características](#-características) •
-[Instalación](#-instalación) •
-[Uso](#-uso-rápido) •
-[API](#-api-rest) •
-[Documentación](#-documentación)
-
-</div>
+Plataforma de ciberseguridad defensiva para análisis de red, detección de vulnerabilidades y monitoreo continuo. Construida sobre Nmap con Python, ofrece interfaz de línea de comandos, panel web y API REST.
 
 ---
 
-## 🎯 Descripción
+## Requisitos
 
-**Escáner Avanzado de Red** es una plataforma completa de ciberseguridad defensiva que combina escaneo de red, detección de vulnerabilidades, análisis de seguridad y monitoreo continuo. Desarrollado con Python y basado en Nmap, ofrece tanto interfaces de línea de comandos como web para diferentes necesidades operacionales.
-
-### ⚡ Características Principales
-
-- 🔍 **Escaneo Avanzado**: TCP, UDP, scripts NSE y detección de SO
-- ⚡ **Paralelización**: Escaneos concurrentes para redes grandes  
-- 🌐 **Panel Web**: Interfaz gráfica con estadísticas en tiempo real
-- 🚀 **API REST**: Integración con otros sistemas de seguridad
-- 🔍 **Detector CVE**: Base de conocimiento local + API NVD
-- 📢 **Sistema de Alertas**: Email, Slack, webhooks automáticos
-- 📊 **Análisis Histórico**: Base de datos SQLite con comparaciones
-- 🎛️ **Gestión Centralizada**: Administrador de inicio unificado
-
-## 🏗️ Arquitectura
-
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│  Escáner CLI    │    │   Panel Web      │    │ Servidor API    │
-│   (Puerto CLI)  │    │  (Puerto 5000)   │    │  (Puerto 5001)  │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-              ┌──────────────────────────────────┐
-              │      Motor Principal             │
-              ├──────────────────────────────────┤
-              │  • Escáner Paralelo              │
-              │  • Detector CVE                  │
-              │  • Sistema Alertas               │
-              │  • Analizador NSE                │
-              │  • Base de Datos SQLite          │
-              └──────────────────────────────────┘
-```
-
-## 🚀 Instalación Rápida
-
-### Requisitos Previos
-
-- **Python 3.8+**
-- **Nmap** instalado y accesible desde PATH
-- **Permisos sudo** (opcional, para detección de SO)
-
-### Instalación
-
-```bash
-# Clonar repositorio
-git clone https://github.com/tu-usuario/escaner-avanzado-red.git
-cd escaner-avanzado-red
-
-# Instalar dependencias
-pip install -r requirements.txt
-
-# Verificar instalación
-python startup.py status
-```
-
-### Instalación de Nmap
+- Python 3.8+
+- Nmap instalado y accesible en PATH
+- `sudo` para detección de sistema operativo (opcional)
 
 ```bash
 # Ubuntu/Debian
-sudo apt update && sudo apt install nmap
+sudo apt install nmap
 
-# CentOS/RHEL/Fedora
+# Fedora/RHEL
 sudo dnf install nmap
 
-# macOS (Homebrew)
+# macOS
 brew install nmap
-
-# Verificar instalación
-nmap --version
 ```
 
-## 💻 Uso Rápido
-
-### 🎛️ Administrador de Inicio (Recomendado)
+## Instalación
 
 ```bash
-# Ver estado del sistema
-python startup.py status
-
-# Escaneo básico
-python startup.py scan 192.168.1.0/24
-
-# Escaneo avanzado
-python startup.py scan 10.0.0.0/16 -t both -o resultados -f json
-
-# Panel web
-python startup.py web
-
-# Servidor API REST
-python startup.py api
-
-# Todos los servicios
-python startup.py all
-
-# Ayuda completa
-python startup.py help
+git clone <repo>
+cd advanced-network-scanner
+pip install -r requirements.txt
 ```
 
-### 🔍 Escáner CLI Directo
+## Uso
+
+### Administrador de inicio (recomendado)
 
 ```bash
-# Escaneo TCP con scripts NSE
-./scanner_v2.py 192.168.1.0/24
-
-# Escaneo UDP rápido
-./scanner_v2.py 192.168.1.0/24 -t udp
-
-# Escaneo completo (TCP + UDP)
-./scanner_v2.py 192.168.1.0/24 -t both --no-nse
-
-# Ver historial
-./scanner_v2.py --history
-
-# Estadísticas
-./scanner_v2.py --stats
+python startup.py status                        # Estado del sistema
+python startup.py scan 192.168.1.0/24          # Escaneo TCP
+python startup.py scan 192.168.1.0/24 -t udp  # Escaneo UDP
+python startup.py scan 192.168.1.0/24 -t both -o resultados -f json
+python startup.py web                           # Panel web (puerto 5000)
+python startup.py api                           # API REST (puerto 5001)
+python startup.py all                           # Ambos servicios
 ```
 
-## 🌐 Panel Web
-
-El panel proporciona una interfaz visual completa para monitoreo y análisis:
-
-**Características:**
-- 📊 **Gráficos Interactivos**: Línea de tiempo de actividad, distribución de alertas
-- 📈 **Estadísticas en Tiempo Real**: Hosts, vulnerabilidades, servicios
-- 🔍 **Tablas Dinámicas**: Escaneos recientes, alertas activas
-- 📱 **Diseño Responsivo**: Compatible con dispositivos móviles
-
-**Acceso:** http://127.0.0.1:5000
-
-## 🚀 API REST
-
-API completa para integración con sistemas externos:
-
-### Endpoints Principales
+### Scanner CLI directo
 
 ```bash
-# Información de la API
-GET /api/v1/info
-
-# Gestión de escaneos
-POST /api/v1/scans                    # Crear escaneo
-GET  /api/v1/scans                    # Listar escaneos
-GET  /api/v1/scans/{id}               # Detalles de escaneo
-GET  /api/v1/scans/{id}/status        # Estado de escaneo
-POST /api/v1/scans/{id}/stop          # Detener escaneo
-
-# Gestión de alertas
-GET  /api/v1/alerts                   # Listar alertas
-GET  /api/v1/alerts/{id}              # Detalles de alerta
-POST /api/v1/alerts/{id}/acknowledge  # Reconocer alerta
-
-# Datos del sistema
-GET /api/v1/statistics               # Estadísticas generales
-GET /api/v1/hosts                    # Hosts descubiertos
-GET /api/v1/vulnerabilities          # Vulnerabilidades detectadas
+python scanner_v2.py 192.168.1.0/24
+python scanner_v2.py 192.168.1.0/24 -t udp --no-nse
+python scanner_v2.py --history
+python scanner_v2.py --stats
 ```
 
-### Ejemplo de Uso
+## API REST
 
 ```bash
-# Crear escaneo asíncrono
+# Crear escaneo
 curl -X POST http://127.0.0.1:5001/api/v1/scans \
   -H "Content-Type: application/json" \
-  -d '{
-    "network": "192.168.1.0/24",
-    "scan_type": "tcp",
-    "use_nse": true
-  }'
+  -H "X-API-Key: $SCANNER_API_KEY" \
+  -d '{"network": "192.168.1.0/24", "scan_type": "tcp"}'
 
-# Verificar estado
-curl http://127.0.0.1:5001/api/v1/scans/scan_123456789/status
+# Estado del escaneo
+curl -H "X-API-Key: $SCANNER_API_KEY" \
+  http://127.0.0.1:5001/api/v1/scans/<scan_id>/status
 
-# Obtener resultados
-curl http://127.0.0.1:5001/api/v1/scans/scan_123456789
+# Documentación de endpoints
+curl http://127.0.0.1:5001/api/v1/info
 ```
 
-## ⚙️ Configuración
+**Endpoints disponibles:**
 
-### Archivo config.yaml
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/v1/info` | Documentación |
+| GET | `/api/v1/status` | Estado del sistema |
+| POST | `/api/v1/scans` | Crear escaneo |
+| GET | `/api/v1/scans` | Listar escaneos |
+| GET | `/api/v1/scans/{id}` | Detalle de escaneo |
+| GET | `/api/v1/scans/{id}/status` | Estado de escaneo |
+| POST | `/api/v1/scans/{id}/stop` | Detener escaneo |
+| GET | `/api/v1/alerts` | Listar alertas |
+| POST | `/api/v1/alerts/{id}/acknowledge` | Reconocer alerta |
+| GET | `/api/v1/statistics` | Estadísticas |
+| GET | `/api/v1/hosts` | Hosts descubiertos |
+| GET | `/api/v1/vulnerabilities` | Vulnerabilidades |
+
+## Configuración
+
+El archivo `config.yaml` controla todos los aspectos del sistema. Los valores más relevantes:
 
 ```yaml
-# Configuración de escaneo
 scan:
   default_scan_type: "tcp"
   use_nse_scripts: true
   nse_scripts: ["vuln", "safe", "default"]
   os_detection: true
 
-# Paralelización
 parallel:
   max_workers: 20
-  enabled: true
-  host_timeout: 60
 
-# Base de datos
 database:
   enabled: true
   retention_days: 90
 
-# Alertas
-alerts:
-  enabled: true
-  critical_services: ["telnet", "ftp"]
-  critical_ports: [21, 23, 445, 3389]
+security:
+  api_key_required: true
+  api_key: ""        # preferir variable de entorno
 
-# Notificaciones
 notifications:
   email:
     enabled: false
-    smtp_server: "smtp.gmail.com"
-    recipients: ["admin@empresa.com"]
-  
   slack:
     enabled: false
-    webhook_url: "https://hooks.slack.com/..."
-
-# Seguridad
-security:
-  api_key_required: false
-  api_key: "tu-clave-api-segura"
 ```
 
-## 🔒 Características de Seguridad
-
-### Detección de Vulnerabilidades
-- **Base CVE Local**: Conocimiento de vulnerabilidades críticas
-- **Integración NVD**: Consulta automática a la base nacional
-- **Análisis NSE**: Scripts de Nmap para detección avanzada
-- **Puntuación CVSS**: Clasificación automática por severidad
-
-### Sistema de Alertas
-- **Reglas Configurables**: Condiciones personalizables
-- **Múltiples Canales**: Email, Slack, webhooks
-- **Escalamiento**: Por severidad y tipo de amenaza
-- **Historial Completo**: Auditoría de todas las alertas
-
-### Análisis de Servicios
-- **Identificación**: Identificación de servicios y versiones  
-- **Protocolo Inseguro**: Detección automática (Telnet, FTP, etc.)
-- **Configuración Débil**: Análisis SSL/TLS, credenciales por defecto
-- **Superficie de Ataque**: Mapeo completo de puertos expuestos
-
-## 📊 Casos de Uso
-
-### 🏢 Empresarial
-- **Auditorías de Red**: Escaneos programados y reportes
-- **Monitoreo Continuo**: Panel para equipos de seguridad  
-- **Gestión de Vulnerabilidades**: Seguimiento y remediación
-- **Cumplimiento**: Reportes para auditorías y certificaciones
-
-### 🔬 Investigación
-- **Análisis Forense**: Investigación de incidentes de red
-- **Búsqueda de Amenazas**: Búsqueda proactiva de amenazas
-- **Pruebas de Penetración**: Reconocimiento autorizado de infraestructura
-- **Educación**: Laboratorios de ciberseguridad
-
-### 🛡️ Defensivo
-- **Detección de Intrusos**: Identificación de hosts no autorizados
-- **Cambio de Configuración**: Monitoreo de modificaciones
-- **Endurecimiento**: Validación de configuraciones seguras
-- **Respuesta a Incidentes**: Análisis rápido durante incidentes
-
-## 🧪 Pruebas
+**API key** — se recomienda configurar via variable de entorno en lugar de `config.yaml`:
 
 ```bash
-# Ejecutar pruebas unitarias
-python -m pytest tests/
-
-# Pruebas de integración
-python -m pytest tests/integration/
-
-# Pruebas de cobertura
-python -m pytest --cov=scanner tests/
-
-# Pruebas de rendimiento
-python tests/performance_test.py
+export SCANNER_API_KEY=<clave-segura>
 ```
 
-## 📚 Documentación
-
-### Estructura del Proyecto
+## Arquitectura
 
 ```
-escaner-avanzado-red/
-├── 📁 core/                   # Módulos principales
-│   ├── scanner_v2.py          # Escáner CLI principal
-│   ├── parallel_scanner.py    # Motor paralelo
-│   ├── cve_detector.py        # Detector CVE
-│   ├── alert_system.py        # Sistema alertas
-│   └── nse_analyzer.py        # Analizador NSE
-├── 📁 web/                    # Panel web
-│   ├── web_dashboard.py       # Aplicación Flask
-│   └── templates/             # Plantillas HTML
-├── 📁 api/                    # API REST
-│   └── api_server.py          # Servidor API
-├── 📁 config/                 # Configuraciones
-│   └── config.yaml            # Configuración principal
-├── 📁 docs/                   # Documentación
-├── 📁 tests/                  # Pruebas automatizadas
-├── startup.py                 # Gestor principal
-└── requirements.txt           # Dependencias
+startup.py              Punto de entrada unificado
+scanner_v2.py           Escáner CLI
+parallel_scanner.py     Motor de escaneo paralelo (ThreadPoolExecutor)
+cve_detector.py         Detección CVE: base local + API NVD
+nse_analyzer.py         Análisis de resultados de scripts NSE
+alert_system.py         Alertas: email, Slack, webhooks
+database.py             Persistencia SQLite
+web_dashboard.py        Panel web Flask (puerto 5000)
+api_server.py           API REST Flask (puerto 5001)
+config.yaml             Configuración centralizada
 ```
 
-### Componentes Principales
+## Tests
 
-| Componente | Descripción | Puerto |
-|------------|-------------|--------|
-| `scanner_v2.py` | Escáner CLI con funciones avanzadas | - |
-| `web_dashboard.py` | Panel web interactivo | 5000 |
-| `api_server.py` | API REST para integraciones | 5001 |
-| `parallel_scanner.py` | Motor de escaneo paralelo | - |
-| `cve_detector.py` | Detector de vulnerabilidades | - |
-| `alert_system.py` | Sistema de alertas | - |
+```bash
+pip install pytest
+python -m pytest tests/ -v
+```
 
-## 🤝 Contribución
+## Uso ético
 
-¡Las contribuciones son bienvenidas! Por favor:
+Esta herramienta está destinada exclusivamente a:
 
-1. Haz Fork del repositorio
-2. Crea una rama feature (`git checkout -b feature/nueva-funcionalidad`)
-3. Commit tus cambios (`git commit -am 'Agregar nueva funcionalidad'`)
-4. Push a la rama (`git push origin feature/nueva-funcionalidad`)  
-5. Crea un Pull Request
+- Auditorías de seguridad en redes propias o con autorización explícita por escrito
+- Investigación y laboratorios de ciberseguridad
+- Monitoreo defensivo de infraestructura propia
 
-Ver [CONTRIBUTING.md](CONTRIBUTING.md) para más detalles.
+El escaneo de redes sin autorización puede constituir un delito. El usuario es el único responsable del cumplimiento de las leyes aplicables.
 
-## 📋 Hoja de Ruta
+## Licencia
 
-Ver [TODO.md](TODO.md) para la hoja de ruta completa de funcionalidades futuras.
+MIT — ver [LICENSE](LICENSE).
 
-### Próximas Características
+## Autor
 
-- 🐳 **Contenedorización**: Docker y Kubernetes
-- ☁️ **Integración Cloud**: AWS, Azure, GCP
-- 📊 **Machine Learning**: Detección de anomalías
-- 🔗 **Integración SIEM**: Splunk, ELK, QRadar
-- 📱 **App Móvil**: Aplicación móvil
-- 🎨 **Temas**: Temas personalizables
-
-## 📈 Registro de Cambios
-
-Ver [CHANGELOG.md](CHANGELOG.md) para el historial completo de cambios.
-
-## 🛡️ Uso Ético
-
-Esta herramienta está diseñada exclusivamente para:
-
-✅ **Uso Autorizado**
-- Auditorías de seguridad autorizadas
-- Evaluación de redes propias
-- Investigación de ciberseguridad
-- Educación y laboratorios
-
-❌ **Uso Prohibido**  
-- Escanear redes sin autorización
-- Actividades maliciosas
-- Violación de términos de servicio
-- Uso comercial sin licencia
-
-**⚖️ Responsabilidad Legal**: Los usuarios son responsables del cumplimiento de las leyes locales e internacionales.
-
-## 📄 Licencia
-
-Este proyecto está licenciado bajo la Licencia MIT. Ver [LICENSE](LICENSE) para más detalles.
-
-## 👨‍💻 Autor
-
-**Eduardo Hurtado**
-- 🌐 Portfolio: [tu-portfolio.com](https://tu-portfolio.com)
-- 💼 LinkedIn: [tu-linkedin](https://linkedin.com/in/tu-perfil)
-- 📧 Email: contacto@eduardohurtado.info
-- 🐱 GitHub: [@tu-usuario](https://github.com/tu-usuario)
-
-## 🙏 Reconocimientos
-
-- **Proyecto Nmap**: Por la herramienta de escaneo base
-- **Comunidad Python**: Por las excelentes librerías
-- **NIST NVD**: Por la base de datos de vulnerabilidades
-- **Comunidad de Ciberseguridad**: Por el feedback y contribuciones
-
----
-
-<div align="center">
-
-**⭐ Si este proyecto te resulta útil, considera darle una estrella ⭐**
-
-*Desarrollado con ❤️ para la comunidad de ciberseguridad*
-
-</div>
+Eduardo Hurtado

@@ -298,5 +298,5 @@ if __name__ == '__main__':
     port = web_config.get('port', 5000)
     debug = web_config.get('debug', True)
     
-    print(f"🚀 Iniciando Dashboard Web en http://{host}:{port}")
+    print(f"Iniciando Dashboard Web en http://{host}:{port}")
     app.run(host=host, port=port, debug=debug)

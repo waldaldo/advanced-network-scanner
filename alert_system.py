@@ -500,11 +500,13 @@ Este mensaje fue generado automáticamente por el Scanner de Red.
             
             # Enviar email
             server = smtplib.SMTP(smtp_server, smtp_port)
-            server.starttls()
-            server.login(username, password)
-            server.send_message(msg)
-            server.quit()
-            
+            try:
+                server.starttls()
+                server.login(username, password)
+                server.send_message(msg)
+            finally:
+                server.quit()
+
             self.logger.info(f"Email enviado para alerta {alert.id}")
             return True
             

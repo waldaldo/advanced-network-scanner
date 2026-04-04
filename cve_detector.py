@@ -97,7 +97,7 @@ class CVEDetector:
                         published_date TEXT,
                         modified_date TEXT,
                         affected_versions TEXT,
-                        references TEXT,
+                        cve_refs TEXT,
                         cached_date TEXT
                     )
                 ''')
@@ -163,7 +163,7 @@ class CVEDetector:
                 cursor = conn.cursor()
                 cursor.execute('''
                     SELECT cve_id, description, severity, score, published_date,
-                           modified_date, affected_versions, references
+                           modified_date, affected_versions, cve_refs
                     FROM cve_cache WHERE cve_id = ?
                 ''', (cve_id,))
                 
@@ -177,7 +177,7 @@ class CVEDetector:
                         published_date=row[4],
                         modified_date=row[5],
                         affected_versions=json.loads(row[6]) if row[6] else [],
-                        references=json.loads(row[7]) if row[7] else []
+                        references=json.loads(row[7]) if row[7] else []  # col: cve_refs
                     )
         except Exception as e:
             self.logger.error(f"Error obteniendo CVE del cache: {e}")
@@ -190,9 +190,9 @@ class CVEDetector:
             with sqlite3.connect(self.cache_file) as conn:
                 cursor = conn.cursor()
                 cursor.execute('''
-                    INSERT OR REPLACE INTO cve_cache 
+                    INSERT OR REPLACE INTO cve_cache
                     (cve_id, description, severity, score, published_date,
-                     modified_date, affected_versions, references, cached_date)
+                     modified_date, affected_versions, cve_refs, cached_date)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     cve_info.cve_id,
@@ -488,19 +488,14 @@ class CVEDetector:
             self.logger.error(f"Error limpiando cache: {e}")
 
 if __name__ == "__main__":
-    # Ejemplo de uso
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Detector CVE standalone")
+    parser.add_argument("--service", default="apache", help="Nombre del servicio")
+    parser.add_argument("--version", default="Apache/2.4.49", help="Version del servicio")
+    parser.add_argument("--port", type=int, default=80, help="Puerto")
+    args = parser.parse_args()
+
     detector = CVEDetector()
-    
-    # Test con datos de ejemplo
-    test_results = [
-        {
-            'host': '192.168.1.100',
-            'ports': [
-                {'service': 'apache', 'version': 'Apache/2.4.49', 'port': 80},
-                {'service': 'openssh', 'version': 'OpenSSH_7.4', 'port': 22}
-            ]
-        }
-    ]
-    
-    report = detector.analyze_scan_results(test_results)
-    print(json.dumps(report, indent=2))
+    vulns = detector.analyze_service_vulnerabilities(args.service, args.version, args.port)
+    print(json.dumps(vulns, indent=2))

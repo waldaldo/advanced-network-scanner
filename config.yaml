@@ -166,6 +166,8 @@ api:
   debug: false
   
 # Configuración de seguridad
+# La API key se lee desde la variable de entorno SCANNER_API_KEY (recomendado)
+# o desde el campo api_key a continuación (no recomendado para producción).
 security:
-  api_key_required: false
-  api_key: "scanner-api-key-2024"
+  api_key_required: true
+  api_key: ""

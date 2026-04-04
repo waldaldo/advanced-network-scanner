@@ -121,8 +121,10 @@ class ScanDatabase:
                         cursor.execute('''
                             INSERT INTO ports (host_id, port, protocol, service, version, state)
                             VALUES (?, ?, ?, ?, ?, ?)
-                        ''', (host_id, port_data['port'], 'tcp', 
-                              port_data['service'], port_data['version'], 'open'))
+                        ''', (host_id, port_data['port'],
+                              port_data.get('protocol', 'tcp'),
+                              port_data['service'], port_data['version'],
+                              port_data.get('state', 'open')))
                 
                 conn.commit()
                 logging.info(f"Escaneo guardado con ID: {scan_id}")

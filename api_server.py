@@ -8,13 +8,13 @@ import yaml
 import json
 import threading
 import time
+import uuid
+import functools
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import logging
 import os
 import sqlite3
-import subprocess
-import signal
 
 from database import ScanDatabase
 from alert_system import AlertSystem
@@ -88,7 +88,7 @@ def load_config():
         config = {
             'database': {'db_file': 'scanner_history.db'},
             'api': {'host': '127.0.0.1', 'port': 5001, 'debug': False},
-            'security': {'api_key_required': False, 'api_key': 'scanner-api-key-2024'}
+            'security': {'api_key_required': True}
         }
     
     # Inicializar componentes
@@ -98,17 +98,17 @@ def load_config():
 
 def require_api_key(f):
     """Decorador para requerir API key."""
+    @functools.wraps(f)
     def decorated_function(*args, **kwargs):
-        if config.get('security', {}).get('api_key_required', False):
+        if config.get('security', {}).get('api_key_required', True):
             api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
-            expected_key = config.get('security', {}).get('api_key')
-            
-            if not api_key or api_key != expected_key:
-                abort(401, description="API key required or invalid")
-        
+            expected_key = os.environ.get('SCANNER_API_KEY') or config.get('security', {}).get('api_key')
+
+            if not api_key or not expected_key or api_key != expected_key:
+                abort(401, description="API key requerida o inválida")
+
         return f(*args, **kwargs)
-    
-    decorated_function.__name__ = f.__name__
+
     return decorated_function
 
 # === ENDPOINTS DE INFORMACIÓN ===
@@ -219,7 +219,7 @@ def api_create_scan():
         abort(400, description="Invalid scan_type. Must be 'tcp', 'udp', or 'both'")
     
     # Generar ID único para el escaneo
-    scan_id = f"scan_{int(time.time())}_{hash(network) % 10000}"
+    scan_id = f"scan_{uuid.uuid4().hex[:12]}"
     
     # Crear y iniciar hilo de escaneo
     options = {
@@ -605,10 +605,11 @@ if __name__ == '__main__':
     port = api_config.get('port', 5001)
     debug = api_config.get('debug', False)
     
-    print(f"🚀 Iniciando API REST en http://{host}:{port}")
-    print(f"📖 Documentación en http://{host}:{port}/api/v1/info")
-    
-    if config.get('security', {}).get('api_key_required', False):
-        print(f"🔐 API Key requerida: {config.get('security', {}).get('api_key')}")
+    print(f"Iniciando API REST en http://{host}:{port}")
+    print(f"Documentacion en http://{host}:{port}/api/v1/info")
+
+    if config.get('security', {}).get('api_key_required', True):
+        key_source = "variable de entorno SCANNER_API_KEY" if os.environ.get('SCANNER_API_KEY') else "config.yaml"
+        print(f"Autenticacion requerida (API key desde {key_source})")
     
     app.run(host=host, port=port, debug=debug)

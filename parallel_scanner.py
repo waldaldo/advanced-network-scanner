@@ -250,7 +250,8 @@ class ParallelScanner:
                 }
                 
                 # Recopilar resultados
-                for future in concurrent.futures.as_completed(future_to_target, timeout=self.timeout * total_targets):
+                global_timeout = self.timeout * min(total_targets, self.max_workers)
+                for future in concurrent.futures.as_completed(future_to_target, timeout=global_timeout):
                     target = future_to_target[future]
                     try:
                         result = future.result()
@@ -455,22 +456,18 @@ class ParallelScanner:
         return stats
 
 if __name__ == "__main__":
-    # Ejemplo de uso
-    scanner = ParallelScanner(max_workers=20)
-    
-    # Callback de progreso
-    def progress_callback(message, progress):
-        print(f"Progreso: {message} ({progress:.1f}%)")
-    
-    scanner.add_progress_callback(progress_callback)
-    
-    # Escanear red
-    network = "192.168.1.1-10"  # Escaneo pequeño para prueba
-    results = scanner.scan_network_parallel(network)
-    
-    # Mostrar resultados
-    scanner.display_results(results, show_down_hosts=True)
-    
-    # Estadísticas
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Scanner paralelo de red")
+    parser.add_argument("network", help="Red a escanear (ej. 192.168.1.0/24)")
+    parser.add_argument("--workers", type=int, default=10, help="Workers paralelos")
+    parser.add_argument("--timeout", type=int, default=300, help="Timeout por host (segundos)")
+    parser.add_argument("--show-down", action="store_true", help="Mostrar hosts caidos")
+    args = parser.parse_args()
+
+    scanner = ParallelScanner(max_workers=args.workers, timeout=args.timeout)
+    results = scanner.scan_network_parallel(args.network)
+    scanner.display_results(results, show_down_hosts=args.show_down)
+
     stats = scanner.get_statistics(results)
-    print(f"\nEstadísticas: {stats}")
+    print(f"\nEstadisticas: {stats}")

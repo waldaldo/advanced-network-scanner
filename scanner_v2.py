@@ -136,7 +136,7 @@ class NetworkScanner:
             args = self.config['scan']['default_tcp_args']
         
         # Agregar detección de OS si está habilitada y se ejecuta como root
-        if self.config['scan']['os_detection'] and os.geteuid() == 0:
+        if self.config['scan']['os_detection'] and os.name != 'nt' and os.geteuid() == 0:
             args += ' -O'
         
         # Agregar scripts NSE
@@ -336,11 +336,10 @@ class NetworkScanner:
             output_dir = Path(self.config['output']['output_dir'])
             output_dir.mkdir(exist_ok=True)
             
-            # Construir ruta completa
-            if self.config['output']['timestamp_files'] and not filename.endswith(f'.{format_type}'):
-                filepath = output_dir / f"{filename}.{format_type}"
-            else:
-                filepath = output_dir / filename
+            # Construir ruta completa — añadir extensión si no la tiene
+            if not filename.endswith(f'.{format_type}'):
+                filename = f"{filename}.{format_type}"
+            filepath = output_dir / filename
             
             with open(filepath, 'w', newline='') as f:
                 if format_type == 'json':
