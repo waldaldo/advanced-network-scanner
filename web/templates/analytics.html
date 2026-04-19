@@ -57,10 +57,10 @@ document.addEventListener('DOMContentLoaded', loadAnalytics);
 async function loadAnalytics() {
     const plotlyConfig = { responsive: true, displayModeBar: false };
     const darkLayout = {
-        paper_bgcolor: 'transparent',
-        plot_bgcolor:  'transparent',
-        font: { color: '#8ba3c7', family: 'Inter, system-ui', size: 11 },
-        margin: { t: 10, r: 10, b: 40, l: 40 }
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor:  'rgba(0,0,0,0)',
+        font: { color: '#475569', family: 'Inter, system-ui', size: 11.5 },
+        margin: { t: 10, r: 10, b: 40, l: 44 }
     };
 
     try {
@@ -71,7 +71,7 @@ async function loadAnalytics() {
             fetch('/api/statistics').then(r => r.json())
         ]);
 
-        const axisStyle = { gridcolor:'#1e2d45', color:'#4a6080', zerolinecolor:'#1e2d45' };
+        const axisStyle = { gridcolor:'#e2e8f0', linecolor:'#e2e8f0', color:'#64748b', zerolinecolor:'#e2e8f0' };
 
         Plotly.newPlot('timeline-chart', tl.data,
             { ...tl.layout, ...darkLayout, xaxis: axisStyle, yaxis: axisStyle },
@@ -105,8 +105,8 @@ function renderCVETable(cveStats) {
                     <td style="color:var(--text-primary)">${d.service}</td>
                     <td><span class="badge-sev sev-critical">${d.count}</span></td>
                     <td style="width:40%">
-                        <div style="background:var(--border); border-radius:3px; height:5px; overflow:hidden">
-                            <div style="background:linear-gradient(90deg,var(--critical),var(--high)); height:100%; width:${Math.round(d.count/max*100)}%; border-radius:3px"></div>
+                        <div style="background:#e2e8f0; border-radius:3px; height:6px; overflow:hidden">
+                            <div style="background:linear-gradient(90deg,#dc2626,#ea580c); height:100%; width:${Math.round(d.count/max*100)}%; border-radius:3px"></div>
                         </div>
                     </td>
                 </tr>`).join('')}

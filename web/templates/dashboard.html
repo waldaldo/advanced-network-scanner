@@ -175,10 +175,10 @@ function renderAlerts(alerts) {
 async function loadCharts() {
     const plotlyConfig = { responsive: true, displayModeBar: false };
     const darkLayout = {
-        paper_bgcolor: 'transparent',
-        plot_bgcolor:  'transparent',
-        font: { color: '#8ba3c7', family: 'Inter, system-ui', size: 11 },
-        margin: { t: 10, r: 10, b: 40, l: 40 }
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor:  'rgba(0,0,0,0)',
+        font: { color: '#475569', family: 'Inter, system-ui', size: 11.5 },
+        margin: { t: 10, r: 10, b: 40, l: 44 }
     };
 
     try {
@@ -188,16 +188,18 @@ async function loadCharts() {
             fetch('/api/charts/top_services').then(r => r.json())
         ]);
 
+        const axisStyle = { gridcolor:'#e2e8f0', linecolor:'#e2e8f0', color:'#64748b', zerolinecolor:'#e2e8f0' };
+
         Plotly.newPlot('scans-timeline-chart',
             tl.data, { ...tl.layout, ...darkLayout,
-                xaxis: { ...tl.layout?.xaxis, gridcolor:'#1e2d45', color:'#4a6080' },
-                yaxis: { ...tl.layout?.yaxis, gridcolor:'#1e2d45', color:'#4a6080' }
+                xaxis: { ...tl.layout?.xaxis, ...axisStyle },
+                yaxis: { ...tl.layout?.yaxis, ...axisStyle }
             }, plotlyConfig);
 
         Plotly.newPlot('alerts-severity-chart',
             sv.data, { ...sv.layout, ...darkLayout,
-                xaxis: { ...sv.layout?.xaxis, gridcolor:'#1e2d45', color:'#4a6080' },
-                yaxis: { ...sv.layout?.yaxis, gridcolor:'#1e2d45', color:'#4a6080' }
+                xaxis: { ...sv.layout?.xaxis, ...axisStyle },
+                yaxis: { ...sv.layout?.yaxis, ...axisStyle }
             }, plotlyConfig);
     } catch(e) { console.error(e); }
 }
