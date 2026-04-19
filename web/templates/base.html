@@ -1,499 +1,751 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Scanner de Red - Dashboard{% endblock %}</title>
-    
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Font Awesome -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
-    <!-- Plotly -->
+    <title>{% block title %}NetScan Pro{% endblock %}</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    
-    <!-- DataTables -->
-    <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
-    
-    <!-- Custom CSS -->
-    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
-    
+
     <style>
+        :root {
+            --bg-primary:    #080c14;
+            --bg-secondary:  #0d1421;
+            --bg-card:       #111827;
+            --bg-card-hover: #162032;
+            --bg-input:      #0d1421;
+            --border:        #1e2d45;
+            --border-light:  #243450;
+            --accent:        #3b82f6;
+            --accent-glow:   rgba(59,130,246,.18);
+            --accent-dim:    #1d4ed8;
+            --teal:          #06b6d4;
+            --teal-glow:     rgba(6,182,212,.15);
+            --text-primary:  #f0f4ff;
+            --text-secondary:#8ba3c7;
+            --text-muted:    #4a6080;
+            --critical:      #ef4444;
+            --critical-glow: rgba(239,68,68,.15);
+            --high:          #f97316;
+            --high-glow:     rgba(249,115,22,.12);
+            --medium:        #eab308;
+            --medium-glow:   rgba(234,179,8,.12);
+            --low:           #22c55e;
+            --low-glow:      rgba(34,197,94,.12);
+            --sidebar-w:     240px;
+        }
+
+        * { box-sizing: border-box; }
+
         body {
-            background-color: #1a1a1a;
-            color: #ffffff;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Inter', system-ui, sans-serif;
+            font-size: .9rem;
+            margin: 0;
+            min-height: 100vh;
         }
-        
-        .navbar-dark {
-            background-color: #2d3436 !important;
+
+        /* ── Scrollbar ─────────────────────────────── */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+        /* ── Sidebar ────────────────────────────────── */
+        #sidebar {
+            position: fixed;
+            top: 0; left: 0;
+            width: var(--sidebar-w);
+            height: 100vh;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            transition: transform .25s ease;
         }
-        
-        .sidebar {
-            background-color: #2d3436;
-            min-height: calc(100vh - 56px);
+
+        .sidebar-brand {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: .75rem;
         }
-        
-        .sidebar .nav-link {
-            color: #ffffff;
-            border-radius: 5px;
-            margin: 2px 0;
+        .sidebar-brand .brand-icon {
+            width: 34px; height: 34px;
+            background: linear-gradient(135deg, var(--accent), var(--teal));
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: .95rem; color: #fff;
+            box-shadow: 0 0 16px var(--accent-glow);
         }
-        
-        .sidebar .nav-link:hover {
-            background-color: #636e72;
-            color: #ffffff;
+        .sidebar-brand .brand-text { line-height: 1; }
+        .sidebar-brand .brand-name {
+            font-weight: 700; font-size: .95rem;
+            color: var(--text-primary); letter-spacing: .01em;
         }
-        
-        .sidebar .nav-link.active {
-            background-color: #00b894;
-            color: #ffffff;
+        .sidebar-brand .brand-sub {
+            font-size: .68rem; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: .08em;
         }
-        
-        .card {
-            background-color: #2d3436;
-            border: 1px solid #636e72;
+
+        .sidebar-nav { flex: 1; padding: 1rem 0; overflow-y: auto; }
+
+        .nav-section-label {
+            padding: .5rem 1.5rem .25rem;
+            font-size: .65rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: .1em;
         }
-        
-        .card-header {
-            background-color: #636e72;
-            border-bottom: 1px solid #74b9ff;
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            padding: .55rem 1.5rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: .855rem;
+            font-weight: 500;
+            border-left: 2px solid transparent;
+            transition: all .15s ease;
+            cursor: pointer;
         }
-        
-        .table-dark {
-            background-color: #2d3436;
+        .sidebar-link:hover {
+            color: var(--text-primary);
+            background: var(--bg-card);
         }
-        
-        .btn-primary {
-            background-color: #00b894;
-            border-color: #00b894;
+        .sidebar-link.active {
+            color: var(--accent);
+            background: var(--accent-glow);
+            border-left-color: var(--accent);
         }
-        
-        .btn-primary:hover {
-            background-color: #00a085;
-            border-color: #00a085;
-        }
-        
-        .badge-critical {
-            background-color: #d63031;
-        }
-        
-        .badge-high {
-            background-color: #e17055;
-        }
-        
-        .badge-medium {
-            background-color: #fdcb6e;
-            color: #000;
-        }
-        
-        .badge-low {
-            background-color: #00b894;
-        }
-        
-        .stat-card {
-            transition: transform 0.2s;
-        }
-        
-        .stat-card:hover {
-            transform: translateY(-2px);
-        }
-        
-        .loading {
-            display: none;
+        .sidebar-link .nav-icon {
+            width: 16px;
             text-align: center;
-            padding: 20px;
+            font-size: .85rem;
+            opacity: .8;
         }
-        
-        .spinner-border {
-            color: #00b894;
+
+        .sidebar-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        /* ── Topbar ─────────────────────────────────── */
+        #topbar {
+            position: fixed;
+            top: 0;
+            left: var(--sidebar-w);
+            right: 0;
+            height: 56px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 1.5rem;
+            z-index: 999;
+            gap: 1rem;
+        }
+        .topbar-title {
+            font-weight: 600;
+            font-size: .95rem;
+            color: var(--text-primary);
+            flex: 1;
+        }
+        .topbar-actions { display: flex; align-items: center; gap: .75rem; }
+
+        /* ── Main content ───────────────────────────── */
+        #main {
+            margin-left: var(--sidebar-w);
+            padding-top: 56px;
+            min-height: 100vh;
+        }
+        .page-body { padding: 1.75rem 2rem; }
+
+        /* ── Cards ──────────────────────────────────── */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+        .card-header {
+            background: transparent;
+            border-bottom: 1px solid var(--border);
+            padding: .9rem 1.25rem;
+            font-size: .82rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+        }
+        .card-header i { color: var(--accent); font-size: .8rem; }
+
+        /* ── Stat cards ─────────────────────────────── */
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            transition: border-color .2s, transform .2s;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+        }
+        .stat-card.blue::before   { background: linear-gradient(90deg, var(--accent), var(--teal)); }
+        .stat-card.teal::before   { background: linear-gradient(90deg, var(--teal), #818cf8); }
+        .stat-card.red::before    { background: linear-gradient(90deg, var(--critical), var(--high)); }
+        .stat-card.yellow::before { background: linear-gradient(90deg, var(--medium), #f97316); }
+
+        .stat-card:hover { border-color: var(--border-light); transform: translateY(-1px); }
+
+        .stat-label {
+            font-size: .7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            margin-bottom: .5rem;
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+        }
+        .stat-icon {
+            position: absolute;
+            top: 1.1rem; right: 1.25rem;
+            font-size: 1.4rem;
+            opacity: .12;
+        }
+        .stat-sub {
+            font-size: .72rem;
+            color: var(--text-muted);
+            margin-top: .4rem;
+        }
+
+        /* ── Buttons ────────────────────────────────── */
+        .btn-primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            font-size: .82rem;
+            font-weight: 500;
+            padding: .45rem 1rem;
+            border-radius: 6px;
+        }
+        .btn-primary:hover { background: var(--accent-dim); border-color: var(--accent-dim); }
+
+        .btn-outline-accent {
+            border: 1px solid var(--border-light);
+            color: var(--text-secondary);
+            background: transparent;
+            font-size: .82rem;
+            font-weight: 500;
+            padding: .4rem .9rem;
+            border-radius: 6px;
+            transition: all .15s;
+        }
+        .btn-outline-accent:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-glow);
+        }
+
+        .btn-sm { font-size: .75rem; padding: .3rem .65rem; }
+
+        /* ── Badges ─────────────────────────────────── */
+        .badge-sev {
+            font-size: .67rem;
+            font-weight: 600;
+            padding: .25rem .55rem;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+        .sev-critical { background: var(--critical-glow); color: var(--critical); border: 1px solid rgba(239,68,68,.3); }
+        .sev-high     { background: var(--high-glow);     color: var(--high);     border: 1px solid rgba(249,115,22,.3); }
+        .sev-medium   { background: var(--medium-glow);   color: var(--medium);   border: 1px solid rgba(234,179,8,.3); }
+        .sev-low      { background: var(--low-glow);      color: var(--low);      border: 1px solid rgba(34,197,94,.3); }
+
+        .badge-type {
+            font-size: .67rem; font-weight: 600;
+            padding: .2rem .5rem; border-radius: 4px;
+            text-transform: uppercase; letter-spacing: .04em;
+        }
+        .type-tcp  { background: rgba(59,130,246,.12);  color: var(--accent); border: 1px solid rgba(59,130,246,.25); }
+        .type-udp  { background: rgba(6,182,212,.12);   color: var(--teal);   border: 1px solid rgba(6,182,212,.25); }
+        .type-both { background: rgba(129,140,248,.12); color: #818cf8;       border: 1px solid rgba(129,140,248,.25); }
+
+        /* ── Tables ─────────────────────────────────── */
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th {
+            font-size: .67rem; font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: .08em;
+            padding: .65rem 1rem;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-secondary);
+            white-space: nowrap;
+        }
+        .data-table td {
+            padding: .7rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-size: .84rem;
+            color: var(--text-secondary);
+            vertical-align: middle;
+        }
+        .data-table tbody tr { transition: background .12s; }
+        .data-table tbody tr:hover { background: var(--bg-card-hover); }
+        .data-table tbody tr:last-child td { border-bottom: none; }
+
+        code, .mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .8rem;
+            color: var(--teal);
+            background: rgba(6,182,212,.08);
+            padding: .1rem .35rem;
+            border-radius: 4px;
+        }
+
+        /* ── Alerts dropdown ────────────────────────── */
+        .alert-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: .4rem;
+        }
+
+        /* ── Status indicator ───────────────────────── */
+        .status-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: .4rem;
+            animation: pulse-dot 2s infinite;
+        }
+        .status-dot.online { background: var(--low); }
+        @keyframes pulse-dot {
+            0%,100% { opacity: 1; } 50% { opacity: .4; }
+        }
+
+        /* ── Modal ──────────────────────────────────── */
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+        }
+        .modal-header {
+            border-bottom: 1px solid var(--border);
+            padding: 1.1rem 1.5rem;
+        }
+        .modal-title { font-size: .95rem; font-weight: 600; }
+        .modal-footer { border-top: 1px solid var(--border); padding: .9rem 1.5rem; }
+        .modal-body { padding: 1.5rem; }
+
+        .form-label {
+            font-size: .78rem; font-weight: 500;
+            color: var(--text-secondary); margin-bottom: .4rem;
+        }
+        .form-control, .form-select {
+            background: var(--bg-input);
+            border: 1px solid var(--border-light);
+            color: var(--text-primary);
+            border-radius: 6px;
+            font-size: .85rem;
+            padding: .5rem .8rem;
+            transition: border-color .15s;
+        }
+        .form-control:focus, .form-select:focus {
+            background: var(--bg-input);
+            border-color: var(--accent);
+            color: var(--text-primary);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+        .form-select option { background: var(--bg-card); }
+        .form-text { font-size: .72rem; color: var(--text-muted); margin-top: .3rem; }
+        .form-check-label { font-size: .82rem; color: var(--text-secondary); }
+        .form-check-input:checked { background-color: var(--accent); border-color: var(--accent); }
+
+        /* ── Dropdown ───────────────────────────────── */
+        .dropdown-menu {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            padding: .4rem;
+            min-width: 240px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.4);
+        }
+        .dropdown-item {
+            color: var(--text-secondary);
+            border-radius: 5px;
+            font-size: .83rem;
+            padding: .5rem .75rem;
+        }
+        .dropdown-item:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+        .dropdown-divider { border-color: var(--border); margin: .3rem 0; }
+
+        /* ── Toast ──────────────────────────────────── */
+        .toast {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            font-size: .84rem;
+            color: var(--text-primary);
+        }
+
+        /* ── Loading / spinner ──────────────────────── */
+        .spinner-border { color: var(--accent) !important; }
+        .page-loader {
+            display: flex; align-items: center; justify-content: center;
+            padding: 3rem; flex-direction: column; gap: .75rem;
+            color: var(--text-muted); font-size: .84rem;
+        }
+
+        /* ── Alert bell badge ───────────────────────── */
+        .alert-badge {
+            background: var(--critical);
+            color: #fff;
+            font-size: .6rem;
+            font-weight: 700;
+            padding: .15rem .35rem;
+            border-radius: 10px;
+            min-width: 16px;
+            text-align: center;
+        }
+
+        /* ── Scrollable dropdown ────────────────────── */
+        .alerts-scroll { max-height: 320px; overflow-y: auto; }
+
+        /* ── Responsive ─────────────────────────────── */
+        @media (max-width: 768px) {
+            #sidebar { transform: translateX(-100%); }
+            #sidebar.open { transform: translateX(0); }
+            #topbar, #main { left: 0; margin-left: 0; }
         }
     </style>
 </head>
 <body>
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/">
-                <i class="fas fa-shield-alt me-2"></i>
-                Scanner de Red
-            </a>
-            
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" id="refresh-data">
-                            <i class="fas fa-sync-alt me-1"></i>
-                            Actualizar
-                        </a>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="alertsDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-bell me-1"></i>
-                            Alertas
-                            <span class="badge bg-danger ms-1" id="alert-count">0</span>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end" id="alerts-dropdown">
-                            <li><span class="dropdown-item-text">Cargando alertas...</span></li>
-                        </ul>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
 
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
-                <div class="position-sticky pt-3">
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link" href="/">
-                                <i class="fas fa-tachometer-alt me-2"></i>
-                                Dashboard
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="/scans">
-                                <i class="fas fa-search me-2"></i>
-                                Escaneos
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="/alerts">
-                                <i class="fas fa-exclamation-triangle me-2"></i>
-                                Alertas
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="/analytics">
-                                <i class="fas fa-chart-line me-2"></i>
-                                Análisis
-                            </a>
-                        </li>
-                    </ul>
-                    
-                    <hr>
-                    
-                    <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
-                        <span>Acciones Rápidas</span>
-                    </h6>
-                    
-                    <ul class="nav flex-column mb-2">
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" id="start-scan-btn">
-                                <i class="fas fa-play me-2"></i>
-                                Nuevo Escaneo
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#" id="export-data-btn">
-                                <i class="fas fa-download me-2"></i>
-                                Exportar Datos
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </nav>
-
-            <!-- Main content -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-                <div class="pt-3 pb-2 mb-3">
-                    {% block content %}{% endblock %}
-                </div>
-            </main>
+<!-- ── Sidebar ─────────────────────────────────────────────── -->
+<aside id="sidebar">
+    <div class="sidebar-brand">
+        <div class="brand-icon"><i class="fas fa-shield-halved"></i></div>
+        <div class="brand-text">
+            <div class="brand-name">NetScan Pro</div>
+            <div class="brand-sub">Security Platform</div>
         </div>
     </div>
 
-    <!-- Modal: Nuevo Escaneo -->
-    <div class="modal fade" id="newScanModal" tabindex="-1" aria-labelledby="newScanModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content" style="background-color:#2d3436; color:#fff; border:1px solid #636e72;">
-                <div class="modal-header" style="border-bottom:1px solid #636e72;">
-                    <h5 class="modal-title" id="newScanModalLabel">
-                        <i class="fas fa-play me-2 text-success"></i>Nuevo Escaneo
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="scan-form-section">
-                        <div class="mb-3">
-                            <label for="scan-network" class="form-label">Red objetivo</label>
-                            <input type="text" class="form-control bg-dark text-white border-secondary"
-                                   id="scan-network" placeholder="ej. 192.168.1.0/24 o 10.0.0.1-50">
-                            <div class="form-text text-muted">Solo se permiten rangos privados (RFC 1918)</div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="scan-type" class="form-label">Tipo de escaneo</label>
-                            <select class="form-select bg-dark text-white border-secondary" id="scan-type">
-                                <option value="tcp">TCP</option>
-                                <option value="udp">UDP</option>
+    <nav class="sidebar-nav">
+        <div class="nav-section-label">Navigation</div>
+        <a href="/" class="sidebar-link" data-path="/">
+            <span class="nav-icon"><i class="fas fa-gauge-high"></i></span>Dashboard
+        </a>
+        <a href="/scans" class="sidebar-link" data-path="/scans">
+            <span class="nav-icon"><i class="fas fa-radar"></i></span>Escaneos
+        </a>
+        <a href="/alerts" class="sidebar-link" data-path="/alerts">
+            <span class="nav-icon"><i class="fas fa-triangle-exclamation"></i></span>
+            Alertas
+            <span class="alert-badge ms-auto" id="sb-alert-count" style="display:none">0</span>
+        </a>
+        <a href="/analytics" class="sidebar-link" data-path="/analytics">
+            <span class="nav-icon"><i class="fas fa-chart-line"></i></span>Análisis
+        </a>
+
+        <div class="nav-section-label mt-3">Acciones</div>
+        <a class="sidebar-link" id="start-scan-btn" style="cursor:pointer">
+            <span class="nav-icon"><i class="fas fa-play"></i></span>Nuevo Escaneo
+        </a>
+        <a class="sidebar-link" id="export-data-btn" style="cursor:pointer">
+            <span class="nav-icon"><i class="fas fa-download"></i></span>Exportar Datos
+        </a>
+    </nav>
+
+    <div class="sidebar-footer">
+        <div class="d-flex align-items-center gap-2">
+            <span class="status-dot online"></span>
+            <span style="font-size:.74rem; color:var(--text-muted)">Sistema operativo</span>
+        </div>
+    </div>
+</aside>
+
+<!-- ── Topbar ──────────────────────────────────────────────── -->
+<header id="topbar">
+    <div class="topbar-title">{% block page_title %}Dashboard{% endblock %}</div>
+    <div class="topbar-actions">
+        <button class="btn btn-outline-accent btn-sm" id="refresh-data">
+            <i class="fas fa-arrows-rotate me-1"></i>Actualizar
+        </button>
+
+        <!-- Alerts dropdown -->
+        <div class="dropdown">
+            <button class="btn btn-outline-accent btn-sm position-relative" data-bs-toggle="dropdown">
+                <i class="fas fa-bell"></i>
+                <span class="alert-badge ms-1" id="topbar-alert-count">0</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end alerts-scroll" id="alerts-dropdown">
+                <li><span class="dropdown-item-text" style="font-size:.75rem; color:var(--text-muted)">Cargando alertas...</span></li>
+            </ul>
+        </div>
+    </div>
+</header>
+
+<!-- ── Main ────────────────────────────────────────────────── -->
+<main id="main">
+    <div class="page-body">
+        {% block content %}{% endblock %}
+    </div>
+</main>
+
+<!-- ── Modal: Nuevo Escaneo ────────────────────────────────── -->
+<div class="modal fade" id="newScanModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-radar me-2" style="color:var(--accent)"></i>Nuevo Escaneo
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Form -->
+                <div id="scan-form-section">
+                    <div class="mb-3">
+                        <label class="form-label">Red objetivo</label>
+                        <input type="text" class="form-control" id="scan-network"
+                               placeholder="192.168.1.0/24  ·  10.0.0.1-50  ·  172.16.0.1">
+                        <div class="form-text">Solo rangos privados RFC 1918 permitidos</div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label">Tipo de escaneo</label>
+                            <select class="form-select" id="scan-type">
+                                <option value="tcp">TCP — SYN scan</option>
+                                <option value="udp">UDP — top 1000</option>
                                 <option value="both">TCP + UDP</option>
                             </select>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="scan-nse">
-                            <label class="form-check-label" for="scan-nse">
-                                Usar scripts NSE (detección de vulnerabilidades, más lento)
-                            </label>
+                        <div class="col-6 d-flex flex-column justify-content-end">
+                            <div class="form-check mb-1">
+                                <input class="form-check-input" type="checkbox" id="scan-nse">
+                                <label class="form-check-label" for="scan-nse">Scripts NSE + CVE</label>
+                            </div>
+                            <div class="form-text" style="margin-top:0">Más lento, más información</div>
                         </div>
                     </div>
-                    <div id="scan-progress-section" style="display:none;">
-                        <div class="text-center py-3">
-                            <div class="spinner-border text-success mb-3" role="status"></div>
-                            <p id="scan-progress-msg" class="mb-1">Iniciando escaneo...</p>
-                            <small class="text-muted" id="scan-progress-network"></small>
-                        </div>
-                    </div>
-                    <div id="scan-result-section" style="display:none;">
-                        <div class="text-center py-3" id="scan-result-content"></div>
+                    <div class="p-3 rounded" style="background:var(--accent-glow); border:1px solid rgba(59,130,246,.2); font-size:.78rem; color:var(--text-secondary)">
+                        <i class="fas fa-circle-info me-1" style="color:var(--accent)"></i>
+                        Con <code>setcap</code> activo: ARP + ICMP discovery, SYN scan, OS detection.
                     </div>
                 </div>
-                <div class="modal-footer" style="border-top:1px solid #636e72;">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="scan-cancel-btn">Cancelar</button>
-                    <button type="button" class="btn btn-success" id="scan-submit-btn">
-                        <i class="fas fa-play me-1"></i>Iniciar
-                    </button>
+
+                <!-- Progress -->
+                <div id="scan-progress-section" style="display:none">
+                    <div class="text-center py-4">
+                        <div class="spinner-border mb-3" role="status"></div>
+                        <div id="scan-progress-msg" style="font-weight:500; color:var(--text-primary)">Iniciando escaneo...</div>
+                        <div id="scan-progress-network" class="mt-1" style="font-size:.8rem; color:var(--text-muted)"></div>
+                    </div>
                 </div>
+
+                <!-- Result -->
+                <div id="scan-result-section" style="display:none">
+                    <div class="text-center py-4" id="scan-result-content"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-accent" data-bs-dismiss="modal" id="scan-cancel-btn">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="scan-submit-btn">
+                    <i class="fas fa-play me-1"></i>Iniciar escaneo
+                </button>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    
-    <!-- DataTables -->
-    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<!-- Toast container -->
+<div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3" style="z-index:9999"></div>
 
-    <!-- Global JavaScript -->
-    <script>
-        // Función para actualizar alertas en el dropdown
-        function updateAlertsDropdown() {
-            fetch('/api/alerts/recent?hours=24')
-                .then(response => response.json())
-                .then(data => {
-                    const dropdown = document.getElementById('alerts-dropdown');
-                    const alertCount = document.getElementById('alert-count');
-                    
-                    alertCount.textContent = data.length;
-                    
-                    if (data.length === 0) {
-                        dropdown.innerHTML = '<li><span class="dropdown-item-text text-muted">No hay alertas recientes</span></li>';
-                    } else {
-                        let html = '';
-                        data.slice(0, 5).forEach(alert => {
-                            const severityClass = {
-                                'critical': 'text-danger',
-                                'high': 'text-warning',
-                                'medium': 'text-info',
-                                'low': 'text-success'
-                            }[alert.severity] || 'text-secondary';
-                            
-                            html += `
-                                <li>
-                                    <a class="dropdown-item" href="/alerts">
-                                        <div class="d-flex justify-content-between">
-                                            <span class="${severityClass}">
-                                                <i class="fas fa-circle me-1" style="font-size: 0.5rem;"></i>
-                                                ${alert.title}
-                                            </span>
-                                        </div>
-                                        <small class="text-muted">${alert.host}</small>
-                                    </a>
-                                </li>
-                            `;
-                        });
-                        
-                        if (data.length > 5) {
-                            html += '<li><hr class="dropdown-divider"></li>';
-                            html += '<li><a class="dropdown-item text-center" href="/alerts">Ver todas las alertas</a></li>';
-                        }
-                        
-                        dropdown.innerHTML = html;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading alerts:', error);
-                });
-        }
-        
-        // Función para mostrar notificaciones toast
-        function showToast(message, type = 'info') {
-            const toastHtml = `
-                <div class="toast align-items-center text-white bg-${type} border-0" role="alert">
-                    <div class="d-flex">
-                        <div class="toast-body">
-                            ${message}
-                        </div>
-                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+/* ── Alerts dropdown ─────────────────────────────────────── */
+function updateAlertsDropdown() {
+    fetch('/api/alerts/recent?hours=24')
+        .then(r => r.json())
+        .then(data => {
+            const count = data.length;
+            document.getElementById('topbar-alert-count').textContent = count;
+            const sb = document.getElementById('sb-alert-count');
+            if (count > 0) { sb.style.display = 'inline'; sb.textContent = count; }
+            else { sb.style.display = 'none'; }
+
+            const dd = document.getElementById('alerts-dropdown');
+            if (!count) {
+                dd.innerHTML = `<li><span class="dropdown-item-text" style="font-size:.75rem; color:var(--text-muted)">Sin alertas recientes</span></li>`;
+                return;
+            }
+            const sevColor = { critical:'var(--critical)', high:'var(--high)', medium:'var(--medium)', low:'var(--low)' };
+            let html = '';
+            data.slice(0,6).forEach(a => {
+                html += `<li><a class="dropdown-item" href="/alerts">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="alert-dot" style="background:${sevColor[a.severity]||'gray'}"></span>
+                        <span style="flex:1; font-size:.8rem">${a.title}</span>
                     </div>
+                    <div style="font-size:.72rem; color:var(--text-muted); padding-left:1.1rem">${a.host||''}</div>
+                </a></li>`;
+            });
+            if (count > 6) html += `<li><hr class="dropdown-divider"></li><li><a class="dropdown-item text-center" href="/alerts" style="font-size:.78rem; color:var(--accent)">Ver todas (${count})</a></li>`;
+            dd.innerHTML = html;
+        }).catch(() => {});
+}
+
+/* ── Toast ───────────────────────────────────────────────── */
+function showToast(message, type = 'info') {
+    const colors = { info: 'var(--accent)', danger: 'var(--critical)', success: 'var(--low)', warning: 'var(--medium)' };
+    const container = document.getElementById('toast-container');
+    const id = 'toast-' + Date.now();
+    container.insertAdjacentHTML('beforeend', `
+        <div id="${id}" class="toast align-items-center border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body" style="border-left: 3px solid ${colors[type]||colors.info}; padding-left:.75rem">
+                    ${message}
                 </div>
-            `;
-            
-            const toastContainer = document.getElementById('toast-container') || createToastContainer();
-            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
-            
-            const toastElements = toastContainer.querySelectorAll('.toast:last-child');
-            const toast = new bootstrap.Toast(toastElements[0]);
-            toast.show();
-        }
-        
-        function createToastContainer() {
-            const container = document.createElement('div');
-            container.id = 'toast-container';
-            container.className = 'toast-container position-fixed top-0 end-0 p-3';
-            document.body.appendChild(container);
-            return container;
-        }
-        
-        // Marcar enlace activo en sidebar
-        function setActiveNavLink() {
-            const currentPath = window.location.pathname;
-            document.querySelectorAll('.sidebar .nav-link').forEach(link => {
-                link.classList.remove('active');
-                if (link.getAttribute('href') === currentPath) {
-                    link.classList.add('active');
-                }
-            });
-        }
-        
-        // Lógica del modal de nuevo escaneo
-        let activeScanId = null;
-        let pollInterval = null;
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>`);
+    new bootstrap.Toast(document.getElementById(id), { delay: 4000 }).show();
+}
 
-        function resetScanModal() {
-            document.getElementById('scan-form-section').style.display = 'block';
-            document.getElementById('scan-progress-section').style.display = 'none';
-            document.getElementById('scan-result-section').style.display = 'none';
-            document.getElementById('scan-submit-btn').style.display = 'inline-block';
-            document.getElementById('scan-cancel-btn').textContent = 'Cancelar';
-            document.getElementById('scan-network').value = '';
-            document.getElementById('scan-nse').checked = false;
-            document.getElementById('scan-type').value = 'tcp';
-            if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
-            activeScanId = null;
-        }
+/* ── Active nav link ─────────────────────────────────────── */
+function setActiveNav() {
+    const path = window.location.pathname;
+    document.querySelectorAll('.sidebar-link[data-path]').forEach(l => {
+        l.classList.toggle('active', l.dataset.path === path);
+    });
+}
 
-        function startScanPoll(scanId) {
-            pollInterval = setInterval(async () => {
-                try {
-                    const resp = await fetch(`/api/scan/status/${scanId}`);
-                    const data = await resp.json();
+/* ── New scan modal ──────────────────────────────────────── */
+let activeScanId = null, pollInterval = null;
 
-                    if (data.status === 'completed') {
-                        clearInterval(pollInterval); pollInterval = null;
-                        document.getElementById('scan-progress-section').style.display = 'none';
-                        const resultSection = document.getElementById('scan-result-section');
-                        resultSection.style.display = 'block';
-                        document.getElementById('scan-result-content').innerHTML = `
-                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
-                            <p class="mb-1">Escaneo completado</p>
-                            <small class="text-muted">${data.results_count ?? 0} hosts procesados</small>`;
-                        document.getElementById('scan-submit-btn').style.display = 'none';
-                        document.getElementById('scan-cancel-btn').textContent = 'Cerrar';
-                        updateAlertsDropdown();
-                    } else if (data.status === 'failed') {
-                        clearInterval(pollInterval); pollInterval = null;
-                        document.getElementById('scan-progress-section').style.display = 'none';
-                        const resultSection = document.getElementById('scan-result-section');
-                        resultSection.style.display = 'block';
-                        document.getElementById('scan-result-content').innerHTML = `
-                            <i class="fas fa-times-circle fa-3x text-danger mb-3"></i>
-                            <p class="mb-1">Error en el escaneo</p>
-                            <small class="text-muted">${data.error || 'Error desconocido'}</small>`;
-                        document.getElementById('scan-submit-btn').style.display = 'none';
-                        document.getElementById('scan-cancel-btn').textContent = 'Cerrar';
-                    }
-                } catch (e) { /* ignorar errores de red temporales */ }
-            }, 3000);
-        }
+function resetScanModal() {
+    document.getElementById('scan-form-section').style.display = 'block';
+    document.getElementById('scan-progress-section').style.display = 'none';
+    document.getElementById('scan-result-section').style.display = 'none';
+    document.getElementById('scan-submit-btn').style.display = 'inline-block';
+    document.getElementById('scan-cancel-btn').textContent = 'Cancelar';
+    document.getElementById('scan-network').value = '';
+    document.getElementById('scan-nse').checked = false;
+    document.getElementById('scan-type').value = 'tcp';
+    document.getElementById('scan-network').classList.remove('is-invalid');
+    if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+    activeScanId = null;
+}
 
-        // Inicializar cuando se carga la página
-        document.addEventListener('DOMContentLoaded', function() {
-            setActiveNavLink();
-            updateAlertsDropdown();
-
-            // Actualizar alertas cada 30 segundos
-            setInterval(updateAlertsDropdown, 30000);
-
-            // Event listener para actualizar datos
-            document.getElementById('refresh-data').addEventListener('click', function(e) {
-                e.preventDefault();
-                location.reload();
-            });
-
-            // Abrir modal al pulsar "Nuevo Escaneo"
-            document.getElementById('start-scan-btn').addEventListener('click', function(e) {
-                e.preventDefault();
-                resetScanModal();
-                new bootstrap.Modal(document.getElementById('newScanModal')).show();
-            });
-
-            // Limpiar estado al cerrar el modal
-            document.getElementById('newScanModal').addEventListener('hidden.bs.modal', function() {
-                if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
-            });
-
-            // Enviar escaneo
-            document.getElementById('scan-submit-btn').addEventListener('click', async function() {
-                const network = document.getElementById('scan-network').value.trim();
-                if (!network) {
-                    document.getElementById('scan-network').classList.add('is-invalid');
-                    return;
-                }
-                document.getElementById('scan-network').classList.remove('is-invalid');
-
-                const payload = {
-                    network: network,
-                    scan_type: document.getElementById('scan-type').value,
-                    use_nse: document.getElementById('scan-nse').checked
-                };
-
-                document.getElementById('scan-form-section').style.display = 'none';
+function startPoll(scanId) {
+    pollInterval = setInterval(async () => {
+        try {
+            const data = await fetch(`/api/scan/status/${scanId}`).then(r => r.json());
+            if (data.status === 'completed') {
+                clearInterval(pollInterval); pollInterval = null;
+                document.getElementById('scan-progress-section').style.display = 'none';
+                document.getElementById('scan-result-section').style.display = 'block';
+                document.getElementById('scan-result-content').innerHTML = `
+                    <div style="color:var(--low); font-size:2.5rem; margin-bottom:.75rem"><i class="fas fa-circle-check"></i></div>
+                    <div style="font-weight:600; color:var(--text-primary)">Escaneo completado</div>
+                    <div style="font-size:.8rem; color:var(--text-muted); margin-top:.3rem">${data.results_count ?? 0} hosts procesados</div>`;
                 document.getElementById('scan-submit-btn').style.display = 'none';
-                document.getElementById('scan-progress-section').style.display = 'block';
-                document.getElementById('scan-progress-msg').textContent = 'Iniciando escaneo...';
-                document.getElementById('scan-progress-network').textContent = network;
+                document.getElementById('scan-cancel-btn').textContent = 'Cerrar';
+                updateAlertsDropdown();
+            } else if (data.status === 'failed') {
+                clearInterval(pollInterval); pollInterval = null;
+                document.getElementById('scan-progress-section').style.display = 'none';
+                document.getElementById('scan-result-section').style.display = 'block';
+                document.getElementById('scan-result-content').innerHTML = `
+                    <div style="color:var(--critical); font-size:2.5rem; margin-bottom:.75rem"><i class="fas fa-circle-xmark"></i></div>
+                    <div style="font-weight:600; color:var(--text-primary)">Error en el escaneo</div>
+                    <div style="font-size:.8rem; color:var(--text-muted); margin-top:.3rem">${data.error||'Error desconocido'}</div>`;
+                document.getElementById('scan-submit-btn').style.display = 'none';
+                document.getElementById('scan-cancel-btn').textContent = 'Cerrar';
+            }
+        } catch(e) {}
+    }, 3000);
+}
 
-                try {
-                    const resp = await fetch('/api/scan/start', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify(payload)
-                    });
-                    const data = await resp.json();
+document.addEventListener('DOMContentLoaded', () => {
+    setActiveNav();
+    updateAlertsDropdown();
+    setInterval(updateAlertsDropdown, 30000);
 
-                    if (!resp.ok) {
-                        throw new Error(data.error || 'Error al iniciar el escaneo');
-                    }
+    document.getElementById('refresh-data').addEventListener('click', e => {
+        e.preventDefault(); location.reload();
+    });
 
-                    activeScanId = data.scan_id;
-                    document.getElementById('scan-progress-msg').textContent = 'Escaneo en curso...';
-                    startScanPoll(activeScanId);
+    document.getElementById('start-scan-btn').addEventListener('click', e => {
+        e.preventDefault();
+        resetScanModal();
+        new bootstrap.Modal(document.getElementById('newScanModal')).show();
+    });
 
-                } catch (err) {
-                    document.getElementById('scan-progress-section').style.display = 'none';
-                    document.getElementById('scan-result-section').style.display = 'block';
-                    document.getElementById('scan-result-content').innerHTML = `
-                        <i class="fas fa-times-circle fa-3x text-danger mb-3"></i>
-                        <p class="mb-1">Error</p>
-                        <small class="text-muted">${err.message}</small>`;
-                    document.getElementById('scan-cancel-btn').textContent = 'Cerrar';
-                }
+    document.getElementById('newScanModal').addEventListener('hidden.bs.modal', () => {
+        if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+    });
+
+    document.getElementById('scan-submit-btn').addEventListener('click', async () => {
+        const network = document.getElementById('scan-network').value.trim();
+        if (!network) { document.getElementById('scan-network').classList.add('is-invalid'); return; }
+        document.getElementById('scan-network').classList.remove('is-invalid');
+
+        document.getElementById('scan-form-section').style.display = 'none';
+        document.getElementById('scan-submit-btn').style.display = 'none';
+        document.getElementById('scan-progress-section').style.display = 'block';
+        document.getElementById('scan-progress-msg').textContent = 'Iniciando escaneo...';
+        document.getElementById('scan-progress-network').textContent = network;
+
+        try {
+            const resp = await fetch('/api/scan/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    network,
+                    scan_type: document.getElementById('scan-type').value,
+                    use_nse:   document.getElementById('scan-nse').checked
+                })
             });
-        });
-    </script>
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(data.error || 'Error al iniciar el escaneo');
+            activeScanId = data.scan_id;
+            document.getElementById('scan-progress-msg').textContent = 'Escaneo en curso...';
+            startPoll(activeScanId);
+        } catch(err) {
+            document.getElementById('scan-progress-section').style.display = 'none';
+            document.getElementById('scan-result-section').style.display = 'block';
+            document.getElementById('scan-result-content').innerHTML = `
+                <div style="color:var(--critical); font-size:2.5rem; margin-bottom:.75rem"><i class="fas fa-circle-xmark"></i></div>
+                <div style="font-weight:600">${err.message}</div>`;
+            document.getElementById('scan-cancel-btn').textContent = 'Cerrar';
+        }
+    });
+});
+</script>
 
-    {% block scripts %}{% endblock %}
+{% block scripts %}{% endblock %}
 </body>
 </html>

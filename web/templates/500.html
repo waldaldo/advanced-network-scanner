@@ -1,10 +1,24 @@
 {% extends "base.html" %}
-{% block title %}500 - Error interno{% endblock %}
+{% block title %}500 — NetScan Pro{% endblock %}
+{% block page_title %}Error interno{% endblock %}
+
 {% block content %}
-<div class="text-center py-5">
-    <i class="fas fa-exclamation-circle fa-4x text-danger mb-4"></i>
-    <h1 class="display-4">500</h1>
-    <p class="lead text-muted">Error interno del servidor</p>
-    <a href="/" class="btn btn-primary mt-3"><i class="fas fa-home me-1"></i>Volver al Dashboard</a>
+<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:60vh; text-align:center">
+    <div style="font-size:7rem; font-weight:800; color:var(--border); line-height:1; font-family:'JetBrains Mono',monospace; letter-spacing:-.05em">
+        500
+    </div>
+    <div style="width:60px; height:2px; background:var(--critical); border-radius:2px; margin:1.5rem 0"></div>
+    <h2 style="color:var(--text-primary); font-size:1.25rem; font-weight:600; margin-bottom:.5rem">Error interno del servidor</h2>
+    <p style="color:var(--text-muted); font-size:.9rem; max-width:360px; margin-bottom:2rem">
+        Ocurrió un error inesperado al procesar la solicitud. Revisa los logs del servidor para más detalles.
+    </p>
+    <div class="d-flex gap-2">
+        <a href="/" class="btn btn-primary">
+            <i class="fas fa-house me-2"></i>Ir al Dashboard
+        </a>
+        <button class="btn btn-outline-accent" onclick="location.reload()">
+            <i class="fas fa-rotate-right me-2"></i>Reintentar
+        </button>
+    </div>
 </div>
 {% endblock %}

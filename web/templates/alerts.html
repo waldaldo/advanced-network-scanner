@@ -1,101 +1,130 @@
 {% extends "base.html" %}
-
-{% block title %}Alertas - Scanner de Red{% endblock %}
+{% block title %}Alertas — NetScan Pro{% endblock %}
+{% block page_title %}Alertas{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center pb-2 mb-3 border-bottom">
-    <h1 class="h2">
-        <i class="fas fa-exclamation-triangle me-2 text-warning"></i>Alertas
-    </h1>
-    <div class="btn-group btn-group-sm">
-        <button class="btn btn-outline-secondary active" data-hours="24" onclick="filterAlerts(24, this)">24h</button>
-        <button class="btn btn-outline-secondary" data-hours="168" onclick="filterAlerts(168, this)">7d</button>
-        <button class="btn btn-outline-secondary" data-hours="720" onclick="filterAlerts(720, this)">30d</button>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div style="color:var(--text-muted); font-size:.84rem">Alertas generadas por reglas de seguridad</div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-accent btn-sm active-filter" data-hours="24"  onclick="filterAlerts(24, this)">24h</button>
+        <button class="btn btn-outline-accent btn-sm"               data-hours="168" onclick="filterAlerts(168, this)">7 días</button>
+        <button class="btn btn-outline-accent btn-sm"               data-hours="720" onclick="filterAlerts(720, this)">30 días</button>
+    </div>
+</div>
+
+<!-- Summary chips -->
+<div class="d-flex gap-3 mb-4" id="alert-summary">
+    <div class="stat-card red py-3 px-4 flex-fill">
+        <div class="stat-label">Críticas</div>
+        <div class="stat-value" id="count-critical">—</div>
+    </div>
+    <div class="stat-card yellow py-3 px-4 flex-fill">
+        <div class="stat-label">Altas</div>
+        <div class="stat-value" id="count-high">—</div>
+    </div>
+    <div class="stat-card teal py-3 px-4 flex-fill">
+        <div class="stat-label">Medias</div>
+        <div class="stat-value" id="count-medium">—</div>
+    </div>
+    <div class="stat-card blue py-3 px-4 flex-fill">
+        <div class="stat-label">Bajas</div>
+        <div class="stat-value" id="count-low">—</div>
     </div>
 </div>
 
 <div class="card">
-    <div class="card-header"><i class="fas fa-list me-1"></i>Listado de Alertas</div>
+    <div class="card-header">
+        <i class="fas fa-triangle-exclamation"></i>Listado de Alertas
+    </div>
     <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-dark table-hover mb-0" id="alerts-table">
-                <thead>
-                    <tr>
-                        <th>Título</th>
-                        <th>Severidad</th>
-                        <th>Host</th>
-                        <th>Puerto</th>
-                        <th>Fecha</th>
-                        <th>Estado</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td colspan="7" class="text-center py-4">
-                        <div class="spinner-border spinner-border-sm me-2"></div>Cargando...
-                    </td></tr>
-                </tbody>
-            </table>
-        </div>
+        <table class="data-table" id="alerts-table">
+            <thead>
+                <tr>
+                    <th>Alerta</th><th>Severidad</th><th>Host</th>
+                    <th>Puerto</th><th>Fecha</th><th>Estado</th><th></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="7" class="text-center py-4">
+                    <div class="spinner-border spinner-border-sm"></div>
+                </td></tr>
+            </tbody>
+        </table>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<style>
+.active-filter { border-color: var(--accent) !important; color: var(--accent) !important; background: var(--accent-glow) !important; }
+</style>
 <script>
+const SEV_CLASS = { critical:'sev-critical', high:'sev-high', medium:'sev-medium', low:'sev-low' };
+
 document.addEventListener('DOMContentLoaded', () => loadAlerts(24));
 
 async function loadAlerts(hours) {
+    document.querySelector('#alerts-table tbody').innerHTML =
+        '<tr><td colspan="7" class="text-center py-4"><div class="spinner-border spinner-border-sm"></div></td></tr>';
     try {
-        const resp = await fetch(`/api/alerts/recent?hours=${hours}`);
-        const alerts = await resp.json();
+        const alerts = await fetch(`/api/alerts/recent?hours=${hours}`).then(r => r.json());
         renderAlerts(alerts);
+        renderSummary(alerts);
     } catch(e) {
         document.querySelector('#alerts-table tbody').innerHTML =
-            '<tr><td colspan="7" class="text-center text-danger">Error cargando alertas</td></tr>';
+            '<tr><td colspan="7" class="text-center py-4" style="color:var(--critical)">Error cargando alertas</td></tr>';
     }
 }
 
 function filterAlerts(hours, btn) {
-    document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    document.querySelectorAll('[data-hours]').forEach(b => b.classList.remove('active-filter'));
+    btn.classList.add('active-filter');
     loadAlerts(hours);
+}
+
+function renderSummary(alerts) {
+    const counts = { critical:0, high:0, medium:0, low:0 };
+    alerts.forEach(a => { if (counts[a.severity] !== undefined) counts[a.severity]++; });
+    document.getElementById('count-critical').textContent = counts.critical;
+    document.getElementById('count-high').textContent     = counts.high;
+    document.getElementById('count-medium').textContent   = counts.medium;
+    document.getElementById('count-low').textContent      = counts.low;
 }
 
 function renderAlerts(alerts) {
     const tbody = document.querySelector('#alerts-table tbody');
     if (!alerts.length) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No hay alertas en el período seleccionado</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-5" style="color:var(--text-muted)">Sin alertas en el período seleccionado</td></tr>';
         return;
     }
-    const sevClass = { critical: 'badge-critical', high: 'badge-high', medium: 'badge-medium', low: 'badge-low' };
     tbody.innerHTML = alerts.map(a => `
-        <tr class="${a.acknowledged ? 'opacity-50' : ''}">
-            <td>${a.title}</td>
-            <td><span class="badge ${sevClass[a.severity] || 'bg-secondary'}">${a.severity.toUpperCase()}</span></td>
-            <td><code>${a.host || '-'}</code></td>
-            <td>${a.port || '-'}</td>
-            <td><small>${new Date(a.timestamp).toLocaleString('es-ES')}</small></td>
-            <td>${a.acknowledged ? '<span class="badge bg-secondary">Reconocida</span>' : '<span class="badge bg-warning text-dark">Pendiente</span>'}</td>
-            <td>
-                ${!a.acknowledged ? `<button class="btn btn-sm btn-outline-success" onclick="acknowledge('${a.id}', this)">
-                    <i class="fas fa-check"></i>
-                </button>` : ''}
-            </td>
-        </tr>
-    `).join('');
+        <tr style="${a.acknowledged ? 'opacity:.45' : ''}">
+            <td style="color:var(--text-primary); font-size:.84rem">${a.title}</td>
+            <td><span class="badge-sev ${SEV_CLASS[a.severity]||''}">${a.severity}</span></td>
+            <td><code>${a.host||'—'}</code></td>
+            <td style="color:var(--text-muted)">${a.port||'—'}</td>
+            <td style="color:var(--text-muted); font-size:.78rem">${new Date(a.timestamp).toLocaleString('es-ES')}</td>
+            <td>${a.acknowledged
+                ? '<span style="font-size:.72rem; color:var(--text-muted)"><i class="fas fa-check me-1"></i>Reconocida</span>'
+                : '<span style="font-size:.72rem; color:var(--medium)"><i class="fas fa-circle me-1" style="font-size:.5rem"></i>Pendiente</span>'
+            }</td>
+            <td>${!a.acknowledged ? `<button class="btn btn-outline-accent btn-sm" onclick="acknowledge('${a.id}', this)">
+                <i class="fas fa-check"></i>
+            </button>` : ''}</td>
+        </tr>`).join('');
 }
 
 async function acknowledge(alertId, btn) {
     btn.disabled = true;
     try {
-        const resp = await fetch(`/api/alerts/${alertId}/acknowledge`, { method: 'POST' });
-        if (resp.ok) {
-            btn.closest('tr').classList.add('opacity-50');
+        const r = await fetch(`/api/alerts/${alertId}/acknowledge`, { method: 'POST' });
+        if (r.ok) {
+            const row = btn.closest('tr');
+            row.style.opacity = '.45';
+            row.querySelector('td:nth-child(6)').innerHTML =
+                '<span style="font-size:.72rem; color:var(--text-muted)"><i class="fas fa-check me-1"></i>Reconocida</span>';
             btn.closest('td').innerHTML = '';
-            btn.closest('tr').querySelector('td:nth-child(6)').innerHTML =
-                '<span class="badge bg-secondary">Reconocida</span>';
-        }
+        } else { btn.disabled = false; }
     } catch(e) { btn.disabled = false; }
 }
 </script>
