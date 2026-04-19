@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Escaneos - Scanner de Red{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-search me-2 text-primary"></i>Escaneos
+    </h1>
+    <button class="btn btn-success btn-sm" id="start-scan-btn-page">
+        <i class="fas fa-play me-1"></i>Nuevo Escaneo
+    </button>
+</div>
+
+<!-- Historial -->
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="fas fa-history me-1"></i>Historial de Escaneos
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0" id="scans-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Red</th>
+                        <th>Tipo</th>
+                        <th>Hosts activos</th>
+                        <th>Duración</th>
+                        <th>Fecha</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <div class="spinner-border spinner-border-sm me-2"></div>Cargando...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Panel de detalles -->
+<div class="card" id="scan-detail-card" style="display:none;">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-info-circle me-1"></i>Detalle del Escaneo <span id="detail-scan-id"></span></span>
+        <button class="btn btn-sm btn-outline-secondary" id="close-detail-btn">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="card-body" id="scan-detail-body">
+        <div class="text-center py-4">
+            <div class="spinner-border spinner-border-sm"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadScans();
+
+    document.getElementById('start-scan-btn-page').addEventListener('click', function() {
+        document.getElementById('start-scan-btn').click();
+    });
+
+    document.getElementById('close-detail-btn').addEventListener('click', function() {
+        document.getElementById('scan-detail-card').style.display = 'none';
+    });
+
+    // Abrir detalle si viene hash en la URL
+    if (window.location.hash) {
+        const id = window.location.hash.replace('#scan-', '');
+        if (id) setTimeout(() => loadScanDetail(id), 800);
+    }
+});
+
+async function loadScans() {
+    try {
+        const resp = await fetch('/api/scans/recent?limit=50');
+        const scans = await resp.json();
+        renderScansTable(scans);
+    } catch(e) {
+        document.querySelector('#scans-table tbody').innerHTML =
+            '<tr><td colspan="7" class="text-center text-danger">Error cargando escaneos</td></tr>';
+    }
+}
+
+function renderScansTable(scans) {
+    const tbody = document.querySelector('#scans-table tbody');
+    if (!scans.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No hay escaneos registrados</td></tr>';
+        return;
+    }
+    const typeClass = { tcp: 'bg-primary', udp: 'bg-info', both: 'bg-warning text-dark' };
+    tbody.innerHTML = scans.map(s => `
+        <tr>
+            <td><small class="text-muted">#${s.id}</small></td>
+            <td><code>${s.network}</code></td>
+            <td><span class="badge ${typeClass[s.scan_type] || 'bg-secondary'}">${s.scan_type.toUpperCase()}</span></td>
+            <td>${s.active_hosts} / ${s.total_hosts}</td>
+            <td>${s.duration ? s.duration.toFixed(1) + 's' : '-'}</td>
+            <td><small>${new Date(s.timestamp).toLocaleString('es-ES')}</small></td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="loadScanDetail(${s.id})">
+                    <i class="fas fa-eye"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function loadScanDetail(scanId) {
+    const card = document.getElementById('scan-detail-card');
+    const body = document.getElementById('scan-detail-body');
+    document.getElementById('detail-scan-id').textContent = '#' + scanId;
+    card.style.display = 'block';
+    body.innerHTML = '<div class="text-center py-4"><div class="spinner-border spinner-border-sm"></div></div>';
+    card.scrollIntoView({ behavior: 'smooth' });
+
+    try {
+        const resp = await fetch(`/api/scans/${scanId}`);
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error);
+        renderScanDetail(data);
+    } catch(e) {
+        body.innerHTML = `<p class="text-danger">Error: ${e.message}</p>`;
+    }
+}
+
+function renderScanDetail(data) {
+    const info = data.scan_info;
+    const hosts = data.hosts || [];
+
+    const hostsHtml = hosts.length ? hosts.map(h => `
+        <div class="mb-3">
+            <h6 class="text-warning mb-1">
+                <i class="fas fa-server me-1"></i>${h.host}
+                <small class="text-muted ms-2">${h.mac || ''}</small>
+            </h6>
+            ${h.ports && h.ports.length ? `
+            <table class="table table-sm table-dark mb-0">
+                <thead><tr><th>Puerto</th><th>Proto</th><th>Servicio</th><th>Versión</th><th>Estado</th></tr></thead>
+                <tbody>
+                    ${h.ports.map(p => `
+                    <tr>
+                        <td>${p.port}</td>
+                        <td><span class="badge ${p.protocol === 'tcp' ? 'bg-primary' : 'bg-info'}">${p.protocol.toUpperCase()}</span></td>
+                        <td>${p.service || '-'}</td>
+                        <td><small>${p.version || '-'}</small></td>
+                        <td><span class="badge bg-success">${p.state}</span></td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>` : '<small class="text-muted">Sin puertos abiertos</small>'}
+        </div>
+    `).join('<hr>') : '<p class="text-muted">No se encontraron hosts activos</p>';
+
+    document.getElementById('scan-detail-body').innerHTML = `
+        <div class="row mb-3">
+            <div class="col-md-3"><small class="text-muted">Red</small><br><code>${info.network}</code></div>
+            <div class="col-md-2"><small class="text-muted">Tipo</small><br>${info.scan_type.toUpperCase()}</div>
+            <div class="col-md-2"><small class="text-muted">Hosts</small><br>${info.active_hosts}/${info.total_hosts}</div>
+            <div class="col-md-2"><small class="text-muted">Duración</small><br>${info.duration ? info.duration.toFixed(1) + 's' : '-'}</div>
+            <div class="col-md-3"><small class="text-muted">Fecha</small><br><small>${new Date(info.timestamp).toLocaleString('es-ES')}</small></div>
+        </div>
+        <hr>
+        ${hostsHtml}
+    `;
+}
+</script>
+{% endblock %}

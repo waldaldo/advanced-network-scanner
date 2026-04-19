@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 import time
+from poc_finder import POCFinder
 
 @dataclass
 class CVEInfo:
@@ -30,6 +31,7 @@ class CVEDetector:
     def __init__(self, cache_file="cve_cache.db"):
         self.cache_file = cache_file
         self.logger = logging.getLogger(__name__)
+        self.poc_finder = POCFinder()
         self.init_cache_db()
         
         # Patrones de versión comunes
@@ -314,8 +316,11 @@ class CVEDetector:
         
         for cve_id in known_cves:
             cve_info = self.get_cve_info(cve_id)
-            
+
             if cve_info:
+                # Enriquecer con POC/exploit references
+                poc_info = self.poc_finder.enrich(cve_id)
+
                 vulnerability = {
                     'cve_id': cve_info.cve_id,
                     'description': cve_info.description,
@@ -325,11 +330,16 @@ class CVEDetector:
                     'version': clean_version,
                     'port': port,
                     'published_date': cve_info.published_date,
-                    'references': cve_info.references
+                    'references': cve_info.references,
+                    # Datos POC
+                    'cwe': poc_info.cwe,
+                    'affected_products': poc_info.affected_products,
+                    'has_public_exploit': poc_info.has_public_exploit,
+                    'exploit_references': poc_info.exploit_references,
+                    'search_links': poc_info.search_links,
+                    'cvss_vector': poc_info.cvss_vector,
                 }
                 vulnerabilities.append(vulnerability)
-                
-                # Registrar detección
                 self.log_service_cve_detection(clean_service, clean_version, cve_id)
         
         return vulnerabilities
@@ -404,11 +414,19 @@ class CVEDetector:
                 cve_id = vuln['cve_id']
                 if cve_id not in unique_cves:
                     unique_cves[cve_id] = {
-                        'cve_id': cve_id,
-                        'description': vuln['description'],
-                        'severity': vuln['severity'],
-                        'score': vuln['score'],
-                        'affected_hosts': 1
+                        'cve_id':             cve_id,
+                        'description':        vuln['description'],
+                        'severity':           vuln['severity'],
+                        'score':              vuln['score'],
+                        'service':            vuln.get('service', ''),
+                        'affected_hosts':     1,
+                        # Campos POC
+                        'cwe':                vuln.get('cwe', []),
+                        'affected_products':  vuln.get('affected_products', []),
+                        'has_public_exploit': vuln.get('has_public_exploit', False),
+                        'exploit_references': vuln.get('exploit_references', []),
+                        'search_links':       vuln.get('search_links', {}),
+                        'cvss_vector':        vuln.get('cvss_vector', ''),
                     }
                 else:
                     unique_cves[cve_id]['affected_hosts'] += 1

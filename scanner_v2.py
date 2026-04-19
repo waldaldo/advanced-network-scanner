@@ -5,6 +5,7 @@ import argparse
 import json
 import csv
 import os
+import subprocess
 import yaml
 import logging
 import time
@@ -18,19 +19,48 @@ from rich.spinner import Spinner
 from rich.panel import Panel
 from rich.text import Text
 from database import ScanDatabase
+from cve_detector import CVEDetector
+from nse_analyzer import NSEAnalyzer
+
+_nmap_privileged_cache = None
+
+def nmap_is_privileged() -> bool:
+    """Devuelve True si nmap puede usar raw sockets (root o via setcap)."""
+    global _nmap_privileged_cache
+    if _nmap_privileged_cache is not None:
+        return _nmap_privileged_cache
+    if os.geteuid() == 0:
+        _nmap_privileged_cache = True
+        return True
+    # Intenta un ARP scan mínimo; si nmap tiene cap_net_raw/cap_net_admin
+    # funcionará sin error, si no retornará exit code != 0 o mensaje de error.
+    try:
+        result = subprocess.run(
+            ['nmap', '--privileged', '-sn', '-n', '--host-timeout', '1s',
+             '-PR', '127.0.0.1'],
+            capture_output=True, text=True, timeout=6
+        )
+        _nmap_privileged_cache = result.returncode == 0 and 'WARNING' not in result.stderr
+    except Exception:
+        _nmap_privileged_cache = False
+    return _nmap_privileged_cache
+
 
 class NetworkScanner:
     def __init__(self, config_file="config.yaml"):
         self.console = Console()
         self.config = self.load_config(config_file)
         self.setup_logging()
-        
+        self.privileged = nmap_is_privileged()
+
         if self.config['database']['enabled']:
             self.db = ScanDatabase(self.config['database']['db_file'])
         else:
             self.db = None
-        
+
         self.nm = nmap.PortScanner()
+        self.cve_detector = CVEDetector()
+        self.nse_analyzer = NSEAnalyzer()
     
     def load_config(self, config_file):
         """Carga la configuración desde el archivo YAML."""
@@ -130,23 +160,29 @@ class NetworkScanner:
         elif scan_type == 'udp':
             args = self.config['scan']['default_udp_args']
         elif scan_type == 'both':
-            # Para escaneo mixto, usar argumentos TCP con UDP
-            args = self.config['scan']['default_tcp_args'] + ' -sU --top-ports 100'
+            args = self.config['scan']['default_tcp_args'] + ' -sS -sU --top-ports 1000'
         else:
             args = self.config['scan']['default_tcp_args']
-        
-        # Agregar detección de OS si está habilitada y se ejecuta como root
-        if self.config['scan']['os_detection'] and os.name != 'nt' and os.geteuid() == 0:
+
+        if self.privileged:
+            # ARP (LAN, más fiable) + ICMP echo + modo privilegiado (SYN scan)
+            args += ' -PR -PE --privileged'
+        else:
+            # Sin raw sockets: TCP SYN ping a puertos comunes para descubrir hosts
+            args += ' -PS22,80,443,8080,3389,8443,21,23,25,3306'
+
+        # OS detection requiere privilegios
+        if self.config['scan']['os_detection'] and self.privileged:
             args += ' -O'
-        
+
         # Agregar scripts NSE
         if use_nse is None:
             use_nse = self.config['scan']['use_nse_scripts']
-        
+
         if use_nse:
             nse_scripts = ','.join(self.config['scan']['nse_scripts'])
             args += f' --script={nse_scripts}'
-        
+
         return args
     
     def scan_network(self, network, scan_type='tcp', output_file=None, 
@@ -161,9 +197,12 @@ class NetworkScanner:
         # Preparar argumentos
         arguments = self.build_nmap_arguments(scan_type, use_nse)
         
+        priv_label = "[bold green]Privilegiado (raw sockets)[/bold green]" if self.privileged \
+                     else "[bold yellow]Sin privilegios (TCP connect)[/bold yellow]"
         self.console.print(Panel(
             f"[bold cyan]Iniciando escaneo {scan_type.upper()}[/bold cyan]\n"
             f"Red: {network}\n"
+            f"Modo: {priv_label}\n"
             f"Argumentos: {arguments}",
             title="Configuración del Escaneo"
         ))
@@ -189,7 +228,18 @@ class NetworkScanner:
         
         # Mostrar resultados
         self.display_results(network, results, scan_type)
-        
+
+        # Análisis CVE sobre resultados
+        cve_report = None
+        if results:
+            with Live(Spinner("dots", text="Analizando vulnerabilidades CVE..."),
+                      console=self.console, transient=True):
+                cve_report = self.cve_detector.analyze_scan_results(results)
+                for host_data in results:
+                    nse_findings = self.nse_analyzer.analyze_host_scripts(host_data)
+                    host_data['nse_findings'] = nse_findings
+            self.display_cve_report(cve_report)
+
         # Calcular duración
         duration = time.time() - start_time
         
@@ -329,6 +379,87 @@ class NetworkScanner:
         )
         self.console.print(stats)
     
+    def display_cve_report(self, cve_report):
+        """Muestra el reporte de vulnerabilidades CVE con referencias POC."""
+        if not cve_report or cve_report['total_cves'] == 0:
+            self.console.print("[dim]No se encontraron CVEs conocidos en los servicios detectados.[/dim]")
+            return
+
+        sev_color = {'critical': 'bold red', 'high': 'red', 'medium': 'yellow', 'low': 'green'}
+
+        # Tabla resumen
+        table = Table(title="Vulnerabilidades CVE Detectadas", show_header=True,
+                      header_style="bold magenta")
+        table.add_column("CVE ID",    style="bold cyan", width=18)
+        table.add_column("Sev",       width=9)
+        table.add_column("Score",     justify="center", width=6)
+        table.add_column("Servicio",  width=10)
+        table.add_column("Exploit?",  justify="center", width=9)
+        table.add_column("CWE",       width=14)
+        table.add_column("Descripción", width=40)
+
+        for vuln in cve_report.get('cve_summary', []):
+            sev   = vuln.get('severity', 'unknown')
+            color = sev_color.get(sev, 'white')
+            score = vuln.get('score', 0)
+            has_exploit = vuln.get('has_public_exploit', False)
+            cwe_list    = vuln.get('cwe', [])
+            cwe_str     = (cwe_list[0] if cwe_list else '-')[:14]
+            desc        = (vuln.get('description', '') or '')[:60]
+            exploit_str = "[bold red]SÍ ⚠[/bold red]" if has_exploit else "[dim]No[/dim]"
+
+            table.add_row(
+                vuln['cve_id'],
+                f"[{color}]{sev.upper()}[/{color}]",
+                f"[{color}]{score}[/{color}]",
+                vuln.get('service', '-'),
+                exploit_str,
+                cwe_str,
+                desc,
+            )
+
+        self.console.print(table)
+
+        # Detalle por CVE con links
+        for vuln in cve_report.get('cve_summary', []):
+            cve_id      = vuln['cve_id']
+            sev         = vuln.get('severity', 'unknown')
+            color       = sev_color.get(sev, 'white')
+            search      = vuln.get('search_links', {})
+            exploit_refs = vuln.get('exploit_references', [])
+            products    = vuln.get('affected_products', [])
+
+            lines = [f"[{color}]{cve_id}[/{color}]  Score: {vuln.get('score',0)}  "
+                     f"({vuln.get('cvss_vector','N/A')})"]
+
+            if products:
+                lines.append(f"[dim]Productos:[/dim] {'; '.join(products[:2])}")
+
+            if exploit_refs:
+                lines.append("[bold red]Exploit público:[/bold red]")
+                for ref in exploit_refs[:3]:
+                    lines.append(f"  → {ref['url']}")
+
+            lines.append("[dim]Buscar POC/exploit:[/dim]")
+            for name in ('exploit_db', 'github_poc', 'packet_storm', 'vulners', 'rapid7'):
+                if name in search:
+                    lines.append(f"  [{name:15}] {search[name]}")
+
+            self.console.print(Panel('\n'.join(lines), title=f"Intel: {cve_id}",
+                                     border_style=color))
+
+        # Resumen final
+        self.console.print(Panel(
+            f"[bold]Resumen:[/bold]\n"
+            f"• [bold red]Críticos:[/bold red]  {cve_report['critical_cves']}\n"
+            f"• [red]Altos:[/red]      {cve_report['high_cves']}\n"
+            f"• [yellow]Medios:[/yellow]     {cve_report['medium_cves']}\n"
+            f"• [green]Bajos:[/green]      {cve_report['low_cves']}\n"
+            f"• Servicios vulnerables: {cve_report['vulnerable_services']} / "
+            f"{cve_report['total_services']}",
+            title="Análisis de Vulnerabilidades"
+        ))
+
     def save_results(self, results, filename, format_type):
         """Guarda los resultados en el formato especificado."""
         try:

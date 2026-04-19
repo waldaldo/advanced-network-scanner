@@ -7,6 +7,8 @@ from flask_cors import CORS
 import json
 import os
 import sqlite3
+import threading
+import uuid
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import plotly.graph_objs as go
@@ -14,7 +16,10 @@ import plotly.utils
 from database import ScanDatabase
 from alert_system import AlertSystem
 from cve_detector import CVEDetector
+from scanner_v2 import NetworkScanner
 import yaml
+
+active_scans: Dict = {}
 
 app = Flask(__name__, template_folder='web/templates', static_folder='web/static')
 CORS(app)
@@ -279,6 +284,52 @@ def alerts_page():
 def analytics_page():
     """Página de análisis."""
     return render_template('analytics.html')
+
+@app.route('/api/scan/start', methods=['POST'])
+def api_start_scan():
+    """Inicia un escaneo desde el dashboard."""
+    data = request.get_json(silent=True) or {}
+    network = data.get('network', '').strip()
+    scan_type = data.get('scan_type', 'tcp')
+    use_nse = data.get('use_nse', False)
+
+    if not network:
+        return jsonify({'error': 'El campo network es requerido'}), 400
+    if scan_type not in ('tcp', 'udp', 'both'):
+        return jsonify({'error': 'scan_type debe ser tcp, udp o both'}), 400
+
+    scan_id = str(uuid.uuid4())
+
+    def run_scan():
+        active_scans[scan_id]['status'] = 'running'
+        try:
+            scanner = NetworkScanner('config.yaml')
+            if not scanner.validate_network(network):
+                active_scans[scan_id]['status'] = 'failed'
+                active_scans[scan_id]['error'] = 'Red no permitida o inválida'
+                return
+            results = scanner.scan_network(network=network, scan_type=scan_type, use_nse=use_nse)
+            active_scans[scan_id]['status'] = 'completed'
+            active_scans[scan_id]['results_count'] = len(results) if results else 0
+        except Exception as e:
+            active_scans[scan_id]['status'] = 'failed'
+            active_scans[scan_id]['error'] = str(e)
+
+    active_scans[scan_id] = {'status': 'pending', 'network': network, 'scan_type': scan_type}
+    t = threading.Thread(target=run_scan, daemon=True)
+    t.start()
+
+    return jsonify({'scan_id': scan_id, 'status': 'started'})
+
+
+@app.route('/api/scan/status/<scan_id>')
+def api_scan_status(scan_id):
+    """Estado de un escaneo iniciado desde el dashboard."""
+    scan = active_scans.get(scan_id)
+    if not scan:
+        return jsonify({'error': 'Escaneo no encontrado'}), 404
+    return jsonify(scan)
+
 
 @app.errorhandler(404)
 def not_found_error(error):

@@ -21,10 +21,14 @@ scan:
   
   # Scripts NSE personalizados a ejecutar
   nse_scripts:
-    - "vuln"
-    - "safe"
-    - "default"
-    - "discovery"
+    - "vuln"       # Detección de vulnerabilidades conocidas
+    - "vulners"    # CVEs via Vulners API (requiere -sV)
+    - "default"    # Scripts seguros por defecto
+
+  # Scripts de explotación activa (USAR SOLO CON AUTORIZACIÓN EXPLÍCITA)
+  # Para activar: agregar "exploit" a nse_scripts
+  # Ejemplos disponibles: smb-webexec-exploit, http-fileupload-exploiter
+  exploit_scripts_enabled: false
 
 # Configuración de paralelización
 parallel:

@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Alertas - Scanner de Red{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="fas fa-exclamation-triangle me-2 text-warning"></i>Alertas
+    </h1>
+    <div class="btn-group btn-group-sm">
+        <button class="btn btn-outline-secondary active" data-hours="24" onclick="filterAlerts(24, this)">24h</button>
+        <button class="btn btn-outline-secondary" data-hours="168" onclick="filterAlerts(168, this)">7d</button>
+        <button class="btn btn-outline-secondary" data-hours="720" onclick="filterAlerts(720, this)">30d</button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><i class="fas fa-list me-1"></i>Listado de Alertas</div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0" id="alerts-table">
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>Severidad</th>
+                        <th>Host</th>
+                        <th>Puerto</th>
+                        <th>Fecha</th>
+                        <th>Estado</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="7" class="text-center py-4">
+                        <div class="spinner-border spinner-border-sm me-2"></div>Cargando...
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => loadAlerts(24));
+
+async function loadAlerts(hours) {
+    try {
+        const resp = await fetch(`/api/alerts/recent?hours=${hours}`);
+        const alerts = await resp.json();
+        renderAlerts(alerts);
+    } catch(e) {
+        document.querySelector('#alerts-table tbody').innerHTML =
+            '<tr><td colspan="7" class="text-center text-danger">Error cargando alertas</td></tr>';
+    }
+}
+
+function filterAlerts(hours, btn) {
+    document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadAlerts(hours);
+}
+
+function renderAlerts(alerts) {
+    const tbody = document.querySelector('#alerts-table tbody');
+    if (!alerts.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No hay alertas en el período seleccionado</td></tr>';
+        return;
+    }
+    const sevClass = { critical: 'badge-critical', high: 'badge-high', medium: 'badge-medium', low: 'badge-low' };
+    tbody.innerHTML = alerts.map(a => `
+        <tr class="${a.acknowledged ? 'opacity-50' : ''}">
+            <td>${a.title}</td>
+            <td><span class="badge ${sevClass[a.severity] || 'bg-secondary'}">${a.severity.toUpperCase()}</span></td>
+            <td><code>${a.host || '-'}</code></td>
+            <td>${a.port || '-'}</td>
+            <td><small>${new Date(a.timestamp).toLocaleString('es-ES')}</small></td>
+            <td>${a.acknowledged ? '<span class="badge bg-secondary">Reconocida</span>' : '<span class="badge bg-warning text-dark">Pendiente</span>'}</td>
+            <td>
+                ${!a.acknowledged ? `<button class="btn btn-sm btn-outline-success" onclick="acknowledge('${a.id}', this)">
+                    <i class="fas fa-check"></i>
+                </button>` : ''}
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function acknowledge(alertId, btn) {
+    btn.disabled = true;
+    try {
+        const resp = await fetch(`/api/alerts/${alertId}/acknowledge`, { method: 'POST' });
+        if (resp.ok) {
+            btn.closest('tr').classList.add('opacity-50');
+            btn.closest('td').innerHTML = '';
+            btn.closest('tr').querySelector('td:nth-child(6)').innerHTML =
+                '<span class="badge bg-secondary">Reconocida</span>';
+        }
+    } catch(e) { btn.disabled = false; }
+}
+</script>
+{% endblock %}
