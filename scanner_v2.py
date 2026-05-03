@@ -21,6 +21,7 @@ from rich.text import Text
 from database import ScanDatabase
 from cve_detector import CVEDetector
 from nse_analyzer import NSEAnalyzer
+from parallel_scanner import ParallelScanner
 
 _nmap_privileged_cache = None
 
@@ -61,6 +62,13 @@ class NetworkScanner:
         self.nm = nmap.PortScanner()
         self.cve_detector = CVEDetector()
         self.nse_analyzer = NSEAnalyzer()
+
+        parallel_config = self.config.get('parallel', {})
+        self.parallel_enabled = parallel_config.get('enabled', True)
+        self.parallel_scanner = ParallelScanner(
+            max_workers=parallel_config.get('max_workers', 20),
+            timeout=parallel_config.get('host_timeout', 60)
+        )
     
     def load_config(self, config_file):
         """Carga la configuración desde el archivo YAML."""
@@ -185,36 +193,46 @@ class NetworkScanner:
 
         return args
     
-    def scan_network(self, network, scan_type='tcp', output_file=None, 
-                    output_format=None, use_nse=None):
+    def scan_network(self, network, scan_type='tcp', output_file=None,
+                     output_format=None, use_nse=None, parallel=None):
         """Escanea la red especificada."""
         start_time = time.time()
-        
+
         # Validar red
         if not self.validate_network(network):
             return None
-        
+
+        # Determinar si usar escaneo paralelo
+        if parallel is None:
+            parallel = self.parallel_enabled
+
         # Preparar argumentos
         arguments = self.build_nmap_arguments(scan_type, use_nse)
-        
+
         priv_label = "[bold green]Privilegiado (raw sockets)[/bold green]" if self.privileged \
-                     else "[bold yellow]Sin privilegios (TCP connect)[/bold yellow]"
+            else "[bold yellow]Sin privilegios (TCP connect)[/bold yellow]"
+        mode_label = "Paralelo" if parallel else "Secuencial"
         self.console.print(Panel(
             f"[bold cyan]Iniciando escaneo {scan_type.upper()}[/bold cyan]\n"
             f"Red: {network}\n"
             f"Modo: {priv_label}\n"
+            f"Estrategia: {mode_label}\n"
             f"Argumentos: {arguments}",
             title="Configuración del Escaneo"
         ))
-        
+
         # Ejecutar escaneo
         spinner_text = f"Escaneando {network} ({scan_type.upper()})... esto puede tardar varios minutos."
         spinner = Spinner("dots", text=spinner_text)
-        
+
         results = []
         with Live(spinner, console=self.console, transient=True):
             try:
-                self.nm.scan(hosts=network, arguments=arguments)
+                if parallel:
+                    results = self._scan_parallel(network, scan_type, arguments)
+                else:
+                    self.nm.scan(hosts=network, arguments=arguments)
+                    results = self.process_results()
                 self.logger.info(f"Escaneo completado para {network}")
             except nmap.PortScannerError as e:
                 self.console.print(f"[bold red]Error de Nmap: {e}[/bold red]")
@@ -262,6 +280,26 @@ class NetworkScanner:
         
         return results
     
+    def _scan_parallel(self, network, scan_type, arguments):
+        """Ejecuta escaneo paralelo y convierte resultados al formato estándar."""
+        parallel_results = self.parallel_scanner.scan_network_parallel(
+            network, scan_type, arguments
+        )
+        results = []
+        for pr in parallel_results:
+            if pr.status in ('up', 'open') or pr.ports:
+                host_data = {
+                    'host': pr.host,
+                    'status': pr.status,
+                    'mac': pr.mac_address,
+                    'vendor': pr.vendor,
+                    'ports': pr.ports,
+                    'os': pr.os_info or [],
+                    'hostscript': []
+                }
+                results.append(host_data)
+        return results
+
     def process_results(self):
         """Procesa los resultados del escaneo."""
         results = []

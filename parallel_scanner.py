@@ -186,7 +186,7 @@ class ParallelScanner:
                     scan_time=scan_time
                 )
                 
-        except Exception as e:
+        except (nmap.PortScannerError, OSError, ValueError) as e:
             scan_time = time.time() - start_time
             self.logger.error(f"Error escaneando {target.host}: {e}")
             
@@ -251,22 +251,22 @@ class ParallelScanner:
                 
                 # Recopilar resultados
                 global_timeout = self.timeout * min(total_targets, self.max_workers)
-                for future in concurrent.futures.as_completed(future_to_target, timeout=global_timeout):
-                    target = future_to_target[future]
-                    try:
-                        result = future.result()
-                        results.append(result)
-                        
-                    except Exception as e:
-                        self.logger.error(f"Error procesando resultado para {target.host}: {e}")
-                        # Añadir resultado de error
-                        results.append(ScanResult(
-                            host=target.host,
-                            status='error',
-                            ports=[],
-                            error=str(e)
-                        ))
-        
+        for future in concurrent.futures.as_completed(future_to_target, timeout=global_timeout):
+            target = future_to_target[future]
+            try:
+                result = future.result()
+                results.append(result)
+            except Exception as e:
+                if isinstance(e, (KeyboardInterrupt, SystemExit)):
+                    raise
+                self.logger.error(f"Error procesando resultado para {target.host}: {e}")
+                results.append(ScanResult(
+                    host=target.host,
+                    status='error',
+                    ports=[],
+                    error=str(e)
+                ))
+
         return results
     
     def scan_ports_parallel(self, host: str, ports: List[int], 
@@ -289,43 +289,41 @@ class ParallelScanner:
             elif scan_type == 'both':
                 arguments = f'-sS -sU -p {port_range} -sV -T4'
             
-            try:
-                nm = nmap.PortScanner()
-                nm.scan(hosts=host, arguments=arguments)
-                
-                chunk_ports = []
-                if host in nm.all_hosts():
-                    host_info = nm[host]
-                    
-                    # Procesar TCP
-                    if 'tcp' in host_info:
-                        for port in host_info['tcp']:
-                            port_info = host_info['tcp'][port]
-                            chunk_ports.append({
-                                'port': port,
-                                'protocol': 'tcp',
-                                'state': port_info.get('state', 'unknown'),
-                                'service': port_info.get('name', 'unknown'),
-                                'version': f"{port_info.get('product', '')} {port_info.get('version', '')}".strip()
-                            })
-                    
-                    # Procesar UDP
-                    if 'udp' in host_info:
-                        for port in host_info['udp']:
-                            port_info = host_info['udp'][port]
-                            chunk_ports.append({
-                                'port': port,
-                                'protocol': 'udp',
-                                'state': port_info.get('state', 'unknown'),
-                                'service': port_info.get('name', 'unknown'),
-                                'version': f"{port_info.get('product', '')} {port_info.get('version', '')}".strip()
-                            })
-                
-                return chunk_ports
-                
-            except Exception as e:
-                self.logger.error(f"Error escaneando chunk de puertos {port_list} en {host}: {e}")
-                return []
+        try:
+            nm = nmap.PortScanner()
+            nm.scan(hosts=host, arguments=arguments)
+
+            chunk_ports = []
+            if host in nm.all_hosts():
+                host_info = nm[host]
+
+                if 'tcp' in host_info:
+                    for port in host_info['tcp']:
+                        port_info = host_info['tcp'][port]
+                        chunk_ports.append({
+                            'port': port,
+                            'protocol': 'tcp',
+                            'state': port_info.get('state', 'unknown'),
+                            'service': port_info.get('name', 'unknown'),
+                            'version': f"{port_info.get('product', '')} {port_info.get('version', '')}".strip()
+                        })
+
+                if 'udp' in host_info:
+                    for port in host_info['udp']:
+                        port_info = host_info['udp'][port]
+                        chunk_ports.append({
+                            'port': port,
+                            'protocol': 'udp',
+                            'state': port_info.get('state', 'unknown'),
+                            'service': port_info.get('name', 'unknown'),
+                            'version': f"{port_info.get('product', '')} {port_info.get('version', '')}".strip()
+                        })
+
+            return chunk_ports
+
+        except (nmap.PortScannerError, OSError) as e:
+            self.logger.error(f"Error escaneando chunk de puertos {port_list} en {host}: {e}")
+            return []
         
         # Ejecutar chunks en paralelo
         with concurrent.futures.ThreadPoolExecutor(max_workers=len(port_chunks)) as executor:
@@ -334,12 +332,14 @@ class ParallelScanner:
                 for chunk in port_chunks
             }
             
-            for future in concurrent.futures.as_completed(future_to_chunk):
-                try:
-                    chunk_results = future.result()
-                    all_ports.extend(chunk_results)
-                except Exception as e:
-                    self.logger.error(f"Error procesando chunk de puertos: {e}")
+        for future in concurrent.futures.as_completed(future_to_chunk):
+            try:
+                chunk_results = future.result()
+                all_ports.extend(chunk_results)
+            except Exception as e:
+                if isinstance(e, (KeyboardInterrupt, SystemExit)):
+                    raise
+                self.logger.error(f"Error procesando chunk de puertos: {e}")
         
         return ScanResult(
             host=host,

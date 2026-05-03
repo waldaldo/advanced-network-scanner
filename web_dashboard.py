@@ -2,13 +2,14 @@
 """
 Dashboard web para el scanner de red usando Flask.
 """
-from flask import Flask, render_template, jsonify, request, send_from_directory
+from flask import Flask, render_template, jsonify, request, send_from_directory, session, redirect, url_for, flash
 from flask_cors import CORS
 import json
 import os
 import sqlite3
 import threading
 import uuid
+import functools
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import plotly.graph_objs as go
@@ -18,11 +19,13 @@ from alert_system import AlertSystem
 from cve_detector import CVEDetector
 from scanner_v2 import NetworkScanner
 import yaml
+import hashlib
 
 active_scans: Dict = {}
 
 app = Flask(__name__, template_folder='web/templates', static_folder='web/static')
-CORS(app)
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', os.urandom(24).hex())
+CORS(app, origins=['http://127.0.0.1:5000', 'http://localhost:5000'])
 
 # Configuración global
 config = {}
@@ -41,20 +44,77 @@ def load_config():
         config = {
             'database': {'db_file': 'scanner_history.db'},
             'notifications': {'email': {'enabled': False}},
-            'web': {'host': '127.0.0.1', 'port': 5000, 'debug': True}
+            'web': {'host': '127.0.0.1', 'port': 5000, 'debug': False}
         }
     
     # Inicializar componentes
     scan_db = ScanDatabase(config['database']['db_file'])
-    alert_system = AlertSystem(config, 'alerts.db')
+    alert_system = AlertSystem(config, 'alerts.db', scan_db=scan_db)
     cve_detector = CVEDetector('cve_cache.db')
 
+def _get_web_credentials():
+    try:
+        with open('config.yaml', 'r') as f:
+            cfg = yaml.safe_load(f)
+        web_cfg = cfg.get('web', {})
+        username = web_cfg.get('auth_username', '')
+        password_hash = web_cfg.get('auth_password_hash', '')
+        if username and password_hash:
+            return {'username': username, 'password_hash': password_hash}
+    except Exception:
+        pass
+    return None
+
+
+def _hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
+def require_login(f):
+    @functools.wraps(f)
+    def decorated(*args, **kwargs):
+        if _get_web_credentials() and not session.get('logged_in'):
+            return redirect(url_for('login_page'))
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route('/login', methods=['GET'])
+def login_page():
+    return render_template('login.html')
+
+
+@app.route('/login', methods=['POST'])
+def login_submit():
+    credentials = _get_web_credentials()
+    if not credentials:
+        session['logged_in'] = True
+        return redirect(url_for('dashboard'))
+    username = request.form.get('username', '')
+    password = request.form.get('password', '')
+    if (username == credentials['username'] and
+            _hash_password(password) == credentials['password_hash']):
+        session['logged_in'] = True
+        session['username'] = username
+        return redirect(url_for('dashboard'))
+    flash('Credenciales inválidas')
+    return redirect(url_for('login_page'))
+
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login_page'))
+
+
 @app.route('/')
+@require_login
 def dashboard():
     """Página principal del dashboard."""
     return render_template('dashboard.html')
 
 @app.route('/api/scans/recent')
+@require_login
 def api_recent_scans():
     """API: Obtiene escaneos recientes."""
     limit = request.args.get('limit', 10, type=int)
@@ -62,6 +122,7 @@ def api_recent_scans():
     return jsonify(scans)
 
 @app.route('/api/scans/<int:scan_id>')
+@require_login
 def api_scan_details(scan_id):
     """API: Obtiene detalles de un escaneo específico."""
     try:
@@ -126,6 +187,7 @@ def api_scan_details(scan_id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/statistics')
+@require_login
 def api_statistics():
     """API: Obtiene estadísticas generales."""
     stats = scan_db.get_statistics()
@@ -139,6 +201,7 @@ def api_statistics():
     })
 
 @app.route('/api/alerts/recent')
+@require_login
 def api_recent_alerts():
     """API: Obtiene alertas recientes."""
     hours = request.args.get('hours', 24, type=int)
@@ -148,6 +211,7 @@ def api_recent_alerts():
     return jsonify(alerts)
 
 @app.route('/api/alerts/<alert_id>/acknowledge', methods=['POST'])
+@require_login
 def api_acknowledge_alert(alert_id):
     """API: Marca una alerta como reconocida."""
     success = alert_system.acknowledge_alert(alert_id)
@@ -158,6 +222,7 @@ def api_acknowledge_alert(alert_id):
         return jsonify({'error': 'Failed to acknowledge alert'}), 500
 
 @app.route('/api/charts/scans_timeline')
+@require_login
 def api_scans_timeline_chart():
     """API: Gráfico de línea temporal de escaneos."""
     try:
@@ -206,6 +271,7 @@ def api_scans_timeline_chart():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/charts/alerts_severity')
+@require_login
 def api_alerts_severity_chart():
     """API: Gráfico de alertas por severidad."""
     try:
@@ -240,6 +306,7 @@ def api_alerts_severity_chart():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/charts/top_services')
+@require_login
 def api_top_services_chart():
     """API: Gráfico de servicios más comunes."""
     try:
@@ -271,21 +338,25 @@ def api_top_services_chart():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/scans')
+@require_login
 def scans_page():
     """Página de escaneos."""
     return render_template('scans.html')
 
 @app.route('/alerts')
+@require_login
 def alerts_page():
     """Página de alertas."""
     return render_template('alerts.html')
 
 @app.route('/analytics')
+@require_login
 def analytics_page():
     """Página de análisis."""
     return render_template('analytics.html')
 
 @app.route('/api/scan/start', methods=['POST'])
+@require_login
 def api_start_scan():
     """Inicia un escaneo desde el dashboard."""
     data = request.get_json(silent=True) or {}
@@ -323,6 +394,7 @@ def api_start_scan():
 
 
 @app.route('/api/scan/status/<scan_id>')
+@require_login
 def api_scan_status(scan_id):
     """Estado de un escaneo iniciado desde el dashboard."""
     scan = active_scans.get(scan_id)

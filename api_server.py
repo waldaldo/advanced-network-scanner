@@ -15,6 +15,7 @@ from typing import Dict, List, Optional, Any
 import logging
 import os
 import sqlite3
+import signal
 
 from database import ScanDatabase
 from alert_system import AlertSystem
@@ -22,7 +23,25 @@ from cve_detector import CVEDetector
 from scanner_v2 import NetworkScanner
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=['http://127.0.0.1:5000', 'http://localhost:5000'])
+
+_api_start_time = datetime.now()
+
+_scan_request_timestamps: Dict[str, List[float]] = {}
+RATE_LIMIT_WINDOW = 60
+RATE_LIMIT_MAX = 10
+
+
+def _check_rate_limit(client_id: str) -> bool:
+    now = time.time()
+    if client_id not in _scan_request_timestamps:
+        _scan_request_timestamps[client_id] = []
+    timestamps = _scan_request_timestamps[client_id]
+    timestamps[:] = [t for t in timestamps if now - t < RATE_LIMIT_WINDOW]
+    if len(timestamps) >= RATE_LIMIT_MAX:
+        return False
+    timestamps.append(now)
+    return True
 
 # Configuración global
 config = {}
@@ -33,7 +52,7 @@ active_scans = {}  # Diccionario para trackear escaneos activos
 
 class ScanThread(threading.Thread):
     """Hilo para ejecutar escaneos en background."""
-    
+
     def __init__(self, scan_id: str, network: str, scan_type: str, options: Dict):
         super().__init__()
         self.scan_id = scan_id
@@ -46,33 +65,59 @@ class ScanThread(threading.Thread):
         self.start_time = None
         self.end_time = None
         self.scanner = None
+        self._stop_requested = False
+
+    def request_stop(self):
+        """Solicita la detención del escaneo."""
+        self._stop_requested = True
+        if self.scanner and hasattr(self.scanner, 'nm'):
+            try:
+                nm_instance = self.scanner.nm
+                if hasattr(nm_instance, '_nmap_proc') and nm_instance._nmap_proc:
+                    nm_instance._nmap_proc.send_signal(signal.SIGTERM)
+                elif hasattr(nm_instance, 'process') and nm_instance.process:
+                    nm_instance.process.send_signal(signal.SIGTERM)
+            except Exception as e:
+                logging.warning(f"No se pudo enviar SIGTERM al proceso nmap: {e}")
+                try:
+                    import subprocess
+                    subprocess.run(['pkill', '-f', f'nmap.*{self.network}'],
+                                   capture_output=True, timeout=5)
+                except Exception:
+                    pass
         
     def run(self):
         """Ejecuta el escaneo."""
         try:
             self.status = 'running'
             self.start_time = datetime.now()
-            
+
             # Crear scanner instance
             config_file = self.options.get('config_file', 'config.yaml')
             self.scanner = NetworkScanner(config_file)
-            
+
             # Ejecutar escaneo
             self.results = self.scanner.scan_network(
                 network=self.network,
                 scan_type=self.scan_type,
                 use_nse=self.options.get('use_nse', True)
             )
-            
-            self.status = 'completed'
+
+            if self._stop_requested:
+                self.status = 'stopped'
+            else:
+                self.status = 'completed'
             self.end_time = datetime.now()
-            
+
         except Exception as e:
-            self.status = 'failed'
-            self.error = str(e)
+            if self._stop_requested:
+                self.status = 'stopped'
+            else:
+                self.status = 'failed'
+                self.error = str(e)
             self.end_time = datetime.now()
             logging.error(f"Error en escaneo {self.scan_id}: {e}")
-        
+
         finally:
             # Remover de escaneos activos después de un tiempo
             threading.Timer(300, lambda: active_scans.pop(self.scan_id, None)).start()
@@ -93,7 +138,7 @@ def load_config():
     
     # Inicializar componentes
     scan_db = ScanDatabase(config['database']['db_file'])
-    alert_system = AlertSystem(config, 'alerts.db')
+    alert_system = AlertSystem(config, 'alerts.db', scan_db=scan_db)
     cve_detector = CVEDetector('cve_cache.db')
 
 def require_api_key(f):
@@ -197,6 +242,10 @@ def api_list_scans():
 @require_api_key
 def api_create_scan():
     """Crea un nuevo escaneo."""
+    client_id = request.headers.get('X-API-Key', request.remote_addr)
+    if not _check_rate_limit(client_id):
+        return jsonify({'error': 'Rate limit exceeded', 'message': f'Max {RATE_LIMIT_MAX} scans per {RATE_LIMIT_WINDOW}s'}), 429
+
     data = request.get_json()
     
     if not data:
@@ -364,20 +413,16 @@ def api_stop_scan(scan_id):
         }), 400
     
     try:
-        # Intentar detener el proceso de manera elegante
-        if hasattr(scan_thread, 'scanner') and scan_thread.scanner:
-            # Esto requeriría modificaciones en NetworkScanner para soportar cancelación
-            pass
-        
-        scan_thread.status = 'stopped'
+        scan_thread.request_stop()
+        scan_thread.status = 'stopping'
         scan_thread.end_time = datetime.now()
-        
+
         return jsonify({
             'scan_id': scan_id,
-            'status': 'stopped',
-            'message': 'Scan stop requested'
+            'status': 'stopping',
+            'message': 'Scan stop requested. The nmap process will be terminated.'
         })
-        
+
     except Exception as e:
         return jsonify({
             'error': f'Failed to stop scan: {str(e)}'
@@ -472,7 +517,7 @@ def api_statistics():
         'cve_statistics': cve_stats,
         'system_statistics': {
             'active_scans': len(active_scans),
-            'uptime_hours': 0,  # Implementar si es necesario
+            'uptime_hours': round((datetime.now() - _api_start_time).total_seconds() / 3600, 2),
             'api_version': '2.0'
         }
     })

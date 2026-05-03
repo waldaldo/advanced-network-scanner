@@ -18,7 +18,7 @@
 
 ## 📜 Code of Conduct
 
-Este proyecto adhiere al Contributor Covenant [code of conduct](CODE_OF_CONDUCT.md). Al participar, se espera que mantengas este código. Por favor reporta comportamiento inaceptable a [project-email@domain.com].
+Este proyecto adhiere al Contributor Covenant [code of conduct](CODE_OF_CONDUCT.md). Al participar, se espera que mantengas este código. Por favor reporta comportamiento inaceptable abriendo un issue confidencial en GitHub.
 
 ### Principios Fundamentales
 
@@ -104,7 +104,7 @@ Cualquier otro contexto sobre el problema.
 **NO** reportes vulnerabilidades de seguridad via issues públicos.
 
 En su lugar:
-1. Email a [security@project.com] con detalles
+1. Abre un issue en GitHub etiquetándolo como "security"
 2. Usa GPG key si está disponible
 3. Incluye pasos para reproducir
 4. Permite tiempo razonable para fix antes de disclosure público
@@ -140,7 +140,7 @@ Cualquier otro contexto o screenshots sobre el feature request.
 
 ```bash
 # Clonar repositorio
-git clone https://github.com/tu-usuario/advanced-network-scanner.git
+git clone https://github.com/waldaldo/advanced-network-scanner.git
 cd advanced-network-scanner
 
 # Crear virtual environment
@@ -160,13 +160,21 @@ python startup.py status
 
 ```
 advanced-network-scanner/
-├── core/                   # Módulos principales
-├── web/                    # Dashboard web
-├── api/                    # API REST
-├── tests/                  # Tests automatizados
-├── docs/                   # Documentación
-├── scripts/                # Scripts de utilidad
-└── examples/               # Ejemplos de uso
+├── scanner_v2.py       # Scanner CLI principal
+├── parallel_scanner.py # Motor de escaneo paralelo
+├── cve_detector.py     # Detector de vulnerabilidades CVE
+├── poc_finder.py       # Buscador de POC/exploits
+├── nse_analyzer.py     # Analizador de resultados NSE
+├── alert_system.py     # Sistema de alertas y notificaciones
+├── database.py         # Persistencia SQLite
+├── web_dashboard.py    # Dashboard web Flask
+├── api_server.py       # API REST Flask
+├── startup.py          # Manager de inicio unificado
+├── web/                # Templates y assets web
+├── tests/              # Tests automatizados
+├── scripts/            # Scripts de utilidad
+├── examples/           # Ejemplos de uso
+└── results/            # Resultados de escaneos
 ```
 
 ### Branch Strategy
@@ -455,9 +463,8 @@ Los contribuidores serán reconocidos en:
 ## 📞 Contacto
 
 - **GitHub Issues**: Para bugs y features
-- **Discussions**: Para preguntas generales  
-- **Email**: [maintainers@project.com] para temas privados
-- **Discord/Slack**: [Invite link] para chat en tiempo real
+- **Discussions**: Para preguntas generales
+- **Email**: Abre un issue confidencial para temas privados
 
 ---
 

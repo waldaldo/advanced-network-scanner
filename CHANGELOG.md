@@ -7,7 +7,7 @@ y este proyecto adhiere al [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ---
 
-## [2.0.0] - 2024-01-XX (Current Release)
+## [2.0.0] - 2024-04-19 (Current Release)
 
 ### ✨ Added - Nuevas Funcionalidades
 
@@ -93,7 +93,7 @@ y este proyecto adhiere al [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ---
 
-## [1.0.0] - 2024-01-XX (Baseline Release)
+## [1.0.0] - 2024-03-01 (Baseline Release)
 
 ### ✨ Added - Funcionalidades Iniciales
 
@@ -174,11 +174,11 @@ y este proyecto adhiere al [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## 🔗 Enlaces
 
-- [GitHub Releases](https://github.com/tu-usuario/advanced-network-scanner/releases)
-- [Issues](https://github.com/tu-usuario/advanced-network-scanner/issues)
-- [Pull Requests](https://github.com/tu-usuario/advanced-network-scanner/pulls)
+- [GitHub Releases](https://github.com/waldaldo/advanced-network-scanner/releases)
+- [Issues](https://github.com/waldaldo/advanced-network-scanner/issues)
+- [Pull Requests](https://github.com/waldaldo/advanced-network-scanner/pulls)
 - [Roadmap](TODO.md)
 
 ---
 
-**Nota**: Las fechas marcadas con XX serán actualizadas al momento del release oficial.
+**Nota**: Las fechas reflejan la fecha real del commit inicial de cada versión.

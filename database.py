@@ -6,9 +6,54 @@ from typing import List, Dict, Optional
 import os
 
 class ScanDatabase:
+    SCHEMA_VERSION = 2
+
     def __init__(self, db_file: str = "scanner_history.db"):
         self.db_file = db_file
         self.init_database()
+        self._run_migrations()
+
+    def _get_schema_version(self) -> int:
+        try:
+            with sqlite3.connect(self.db_file) as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS schema_meta (
+                        key TEXT PRIMARY KEY,
+                        value TEXT
+                    )
+                ''')
+                cursor.execute('SELECT value FROM schema_meta WHERE key = ?', ('schema_version',))
+                row = cursor.fetchone()
+                conn.commit()
+                if row:
+                    return int(row[0])
+                cursor.execute('INSERT INTO schema_meta (key, value) VALUES (?, ?)',
+                               ('schema_version', str(self.SCHEMA_VERSION)))
+                conn.commit()
+                return self.SCHEMA_VERSION
+        except sqlite3.Error as e:
+            logging.error(f"Error leyendo versión de schema: {e}")
+            return 1
+
+    def _run_migrations(self):
+        current_version = self._get_schema_version()
+        if current_version >= self.SCHEMA_VERSION:
+            return
+        try:
+            with sqlite3.connect(self.db_file) as conn:
+                cursor = conn.cursor()
+                if current_version < 2:
+                    try:
+                        cursor.execute('ALTER TABLE scans ADD COLUMN status TEXT DEFAULT "completed"')
+                    except sqlite3.OperationalError:
+                        pass
+                cursor.execute('UPDATE schema_meta SET value = ? WHERE key = ?',
+                               (str(self.SCHEMA_VERSION), 'schema_version'))
+                conn.commit()
+                logging.info(f"Base de datos migrada de v{current_version} a v{self.SCHEMA_VERSION}")
+        except sqlite3.Error as e:
+            logging.error(f"Error en migración de BD: {e}")
     
     def init_database(self):
         """Inicializa la base de datos y crea las tablas necesarias."""

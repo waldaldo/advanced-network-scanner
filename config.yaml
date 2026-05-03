@@ -162,12 +162,18 @@ web:
   host: "127.0.0.1"
   port: 5000
   debug: false
+  # Autenticación del dashboard (dejar vacío para deshabilitar)
+  auth_username: ""
+  # Generar hash: python -c "import hashlib; print(hashlib.sha256('tu-password'.encode()).hexdigest())"
+  auth_password_hash: ""
 
 # Configuración de la API REST
 api:
   host: "127.0.0.1"
   port: 5001
   debug: false
+  # Orígenes permitidos para CORS (vacío = solo localhost)
+  cors_origins: []
   
 # Configuración de seguridad
 # La API key se lee desde la variable de entorno SCANNER_API_KEY (recomendado)

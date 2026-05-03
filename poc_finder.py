@@ -8,10 +8,15 @@ import re
 import time
 import logging
 import requests
+import sqlite3
+import json
 from typing import Dict, List, Optional
 from dataclasses import dataclass, field
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
+if not logger.handlers:
+    logger.addHandler(logging.NullHandler())
 
 EXPLOIT_SOURCES = {
     'exploit_db':    'https://www.exploit-db.com/search?cve={cve}',
@@ -65,14 +70,88 @@ class POCFinder:
     """Busca referencias de exploits y POCs para CVEs encontrados en escaneos."""
 
     CIRCL_URL = 'https://cve.circl.lu/api/cve/{cve}'
-    REQUEST_DELAY = 1.0  # segundos entre llamadas para no saturar las APIs
+    REQUEST_DELAY = 1.0
 
-    def __init__(self):
+    def __init__(self, cache_file="poc_cache.db"):
+        self.cache_file = cache_file
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': 'NetworkScanner/2.0 (Security Research; Educational)'
         })
         self._cache: Dict[str, POCInfo] = {}
+        self._init_cache_db()
+
+    def _init_cache_db(self):
+        try:
+            with sqlite3.connect(self.cache_file) as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS poc_cache (
+                        cve_id TEXT PRIMARY KEY,
+                        description TEXT,
+                        cvss_score REAL,
+                        cvss_vector TEXT,
+                        severity TEXT,
+                        cwe TEXT,
+                        affected_products TEXT,
+                        exploit_references TEXT,
+                        search_links TEXT,
+                        has_public_exploit INTEGER,
+                        published_date TEXT,
+                        last_modified TEXT,
+                        cached_date TEXT
+                    )
+                ''')
+                conn.commit()
+        except sqlite3.Error as e:
+            logger.error(f"Error inicializando cache POC: {e}")
+
+    def _save_to_db(self, info: POCInfo):
+        try:
+            with sqlite3.connect(self.cache_file) as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT OR REPLACE INTO poc_cache
+                    (cve_id, description, cvss_score, cvss_vector, severity, cwe,
+                     affected_products, exploit_references, search_links,
+                     has_public_exploit, published_date, last_modified, cached_date)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    info.cve_id, info.description, info.cvss_score,
+                    info.cvss_vector, info.severity,
+                    json.dumps(info.cwe), json.dumps(info.affected_products),
+                    json.dumps(info.exploit_references), json.dumps(info.search_links),
+                    int(info.has_public_exploit), info.published_date,
+                    info.last_modified, datetime.now().isoformat()
+                ))
+                conn.commit()
+        except sqlite3.Error as e:
+            logger.error(f"Error guardando POC en cache: {e}")
+
+    def _load_from_db(self, cve_id: str) -> Optional[POCInfo]:
+        try:
+            with sqlite3.connect(self.cache_file) as conn:
+                cursor = conn.cursor()
+                cursor.execute('SELECT * FROM poc_cache WHERE cve_id = ?', (cve_id,))
+                row = cursor.fetchone()
+                if row:
+                    return POCInfo(
+                        cve_id=row[0],
+                        description=row[1] or '',
+                        cvss_score=row[2] or 0.0,
+                        cvss_vector=row[3] or '',
+                        severity=row[4] or 'unknown',
+                        cwe=json.loads(row[5]) if row[5] else [],
+                        affected_products=json.loads(row[6]) if row[6] else [],
+                        exploit_references=json.loads(row[7]) if row[7] else [],
+                        search_links=json.loads(row[8]) if row[8] else {},
+                        has_public_exploit=bool(row[9]),
+                        published_date=row[10] or '',
+                        last_modified=row[11] or ''
+                    )
+        except sqlite3.Error as e:
+            logger.error(f"Error cargando POC del cache: {e}")
+        return None
 
     def build_search_links(self, cve_id: str) -> Dict[str, str]:
         """Genera links de búsqueda directa para todas las fuentes."""
@@ -99,12 +178,13 @@ class POCFinder:
         return None
 
     def enrich(self, cve_id: str) -> POCInfo:
-        """
-        Enriquece un CVE con descripción, score CVSS y referencias de exploits.
-        Resultado cacheado para evitar llamadas repetidas.
-        """
         if cve_id in self._cache:
             return self._cache[cve_id]
+
+        db_info = self._load_from_db(cve_id)
+        if db_info:
+            self._cache[cve_id] = db_info
+            return db_info
 
         info = POCInfo(
             cve_id=cve_id,
@@ -177,6 +257,7 @@ class POCFinder:
                     info.has_public_exploit = True
 
         self._cache[cve_id] = info
+        self._save_to_db(info)
         return info
 
     def enrich_bulk(self, cve_ids: List[str]) -> Dict[str, POCInfo]:

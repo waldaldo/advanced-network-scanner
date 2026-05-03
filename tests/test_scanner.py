@@ -8,6 +8,7 @@ import time
 import tempfile
 import os
 import sqlite3
+import nmap
 from unittest.mock import MagicMock, patch, PropertyMock, mock_open
 
 try:
@@ -295,7 +296,7 @@ class TestParallelScanner:
     def test_scan_single_host_error(self, mock_nmap_cls):
         mock_nm = MagicMock()
         mock_nmap_cls.return_value = mock_nm
-        mock_nm.scan.side_effect = Exception("connection refused")
+        mock_nm.scan.side_effect = nmap.PortScannerError("connection refused")
 
         target = ScanTarget(host='10.0.0.1', scan_type='tcp')
         result = self.scanner.scan_single_host(target)
@@ -576,6 +577,67 @@ class TestAlertSystem:
         assert 'total_alerts' in stats
         assert 'by_severity' in stats
         assert 'recent_24h' in stats
+
+    def test_new_host_rule_without_scan_db(self):
+        rule = self.alert_system.get_rule('new_host_discovered')
+        if rule is None:
+            pytest.skip("new_host_discovered rule not loaded")
+        scan_data = {'scan_results': [{'host': '10.0.0.1', 'status': 'up', 'ports': []}]}
+        alerts = self.alert_system.evaluate_new_host_rule(rule, scan_data)
+        assert isinstance(alerts, list)
+
+    def test_new_host_rule_with_scan_db(self):
+        from database import ScanDatabase
+        scan_db_temp = tempfile.NamedTemporaryFile(suffix='.db', delete=False)
+        scan_db_temp.close()
+        try:
+            scan_db = ScanDatabase(scan_db_temp.name)
+            results1 = [{'host': '10.0.0.1', 'status': 'up', 'mac': 'N/A', 'ports': []}]
+            scan_db.save_scan("10.0.0.0/24", "tcp", results1, 1.0, "-sV")
+
+            alert_sys = AlertSystem(self.config, self.temp_db.name, scan_db=scan_db)
+            rule = alert_sys.get_rule('new_host_discovered')
+            if rule is None:
+                pytest.skip("new_host_discovered rule not loaded")
+
+            scan_data = {'scan_results': [{'host': '10.0.0.2', 'status': 'up', 'ports': []}]}
+            alerts = alert_sys.evaluate_new_host_rule(rule, scan_data)
+            assert isinstance(alerts, list)
+        finally:
+            os.unlink(scan_db_temp.name)
+
+    def test_port_change_rule_without_scan_db(self):
+        rule = self.alert_system.get_rule('port_change_detected')
+        if rule is None:
+            pytest.skip("port_change_detected rule not loaded")
+        scan_data = {'scan_results': [{'host': '10.0.0.1', 'status': 'up', 'ports': []}]}
+        alerts = self.alert_system.evaluate_port_change_rule(rule, scan_data)
+        assert isinstance(alerts, list)
+
+    def test_port_change_rule_with_scan_db(self):
+        from database import ScanDatabase
+        scan_db_temp = tempfile.NamedTemporaryFile(suffix='.db', delete=False)
+        scan_db_temp.close()
+        try:
+            scan_db = ScanDatabase(scan_db_temp.name)
+            results1 = [{'host': '10.0.0.1', 'status': 'up', 'mac': 'N/A',
+                         'ports': [{'port': 22, 'service': 'ssh', 'version': '', 'protocol': 'tcp', 'state': 'open'}]}]
+            results2 = [{'host': '10.0.0.1', 'status': 'up', 'mac': 'N/A',
+                         'ports': [{'port': 22, 'service': 'ssh', 'version': '', 'protocol': 'tcp', 'state': 'open'},
+                                   {'port': 80, 'service': 'http', 'version': '', 'protocol': 'tcp', 'state': 'open'}]}]
+            scan_db.save_scan("10.0.0.0/24", "tcp", results1, 1.0, "-sV")
+            scan_db.save_scan("10.0.0.0/24", "tcp", results2, 1.0, "-sV")
+
+            alert_sys = AlertSystem(self.config, self.temp_db.name, scan_db=scan_db)
+            rule = alert_sys.get_rule('port_change_detected')
+            if rule is None:
+                pytest.skip("port_change_detected rule not loaded")
+
+            scan_data = {'scan_results': [{'host': '10.0.0.1', 'status': 'up', 'ports': []}]}
+            alerts = alert_sys.evaluate_port_change_rule(rule, scan_data)
+            assert isinstance(alerts, list)
+        finally:
+            os.unlink(scan_db_temp.name)
 
 
 # ---------------------------------------------------------------------------

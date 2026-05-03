@@ -45,10 +45,11 @@ class Alert:
 
 class AlertSystem:
     """Sistema de gestión de alertas y notificaciones."""
-    
-    def __init__(self, config: Dict, db_file: str = "alerts.db"):
+
+    def __init__(self, config: Dict, db_file: str = "alerts.db", scan_db=None):
         self.config = config
         self.db_file = db_file
+        self.scan_db = scan_db
         self.logger = logging.getLogger(__name__)
         self.init_database()
         self.load_default_rules()
@@ -393,14 +394,141 @@ class AlertSystem:
         return alerts
     
     def evaluate_new_host_rule(self, rule: AlertRule, scan_data: Dict) -> List[Alert]:
-        """Evalúa reglas de nuevos hosts."""
-        # Implementación simplificada - requeriría comparación con escaneos previos
-        return []
-    
+        """Evalúa reglas de nuevos hosts comparando con escaneos previos."""
+        alerts = []
+
+        if not self.scan_db:
+            return alerts
+
+        try:
+            current_hosts = set()
+            scan_results = scan_data.get('scan_results', [])
+            for host_data in scan_results:
+                if host_data.get('status') == 'up':
+                    current_hosts.add(host_data['host'])
+
+            if not current_hosts:
+                return alerts
+
+            history = self.scan_db.get_scan_history(limit=1)
+            if not history:
+                for host in current_hosts:
+                    alert = Alert(
+                        id=f"{rule.id}_{host}_{int(datetime.now().timestamp())}",
+                        rule_id=rule.id,
+                        title=f"Nuevo Host Descubierto: {host}",
+                        message=f"Nuevo host {host} detectado (primer escaneo registrado)",
+                        severity=rule.severity,
+                        host=host,
+                        port=None,
+                        service=None,
+                        data={'host': host, 'reason': 'first_scan'},
+                        timestamp=datetime.now().isoformat()
+                    )
+                    alerts.append(alert)
+                return alerts
+
+            prev_scan_id = history[0]['id']
+            recent_scan_ids = self.scan_db.get_scan_history(limit=5)
+            prev_scan_id = recent_scan_ids[-1]['id'] if len(recent_scan_ids) > 1 else None
+
+            if prev_scan_id is None:
+                return alerts
+
+            current_scan_id = recent_scan_ids[0]['id']
+            if current_scan_id == prev_scan_id:
+                return alerts
+
+            diff = self.scan_db.compare_scans(prev_scan_id, current_scan_id)
+            new_hosts = diff.get('new_hosts', [])
+
+            for host in new_hosts:
+                if host in current_hosts:
+                    alert = Alert(
+                        id=f"{rule.id}_{host}_{int(datetime.now().timestamp())}",
+                        rule_id=rule.id,
+                        title=f"Nuevo Host Descubierto: {host}",
+                        message=f"Nuevo host {host} detectado en la red (no presente en escaneo anterior)",
+                        severity=rule.severity,
+                        host=host,
+                        port=None,
+                        service=None,
+                        data={'host': host, 'reason': 'new_host', 'previous_scan_id': prev_scan_id},
+                        timestamp=datetime.now().isoformat()
+                    )
+                    alerts.append(alert)
+
+        except Exception as e:
+            self.logger.error(f"Error evaluando regla de nuevos hosts: {e}")
+
+        return alerts
+
     def evaluate_port_change_rule(self, rule: AlertRule, scan_data: Dict) -> List[Alert]:
-        """Evalúa reglas de cambios en puertos."""
-        # Implementación simplificada - requeriría comparación con escaneos previos
-        return []
+        """Evalúa reglas de cambios en puertos comparando con escaneos previos."""
+        alerts = []
+        conditions = rule.conditions
+        change_types = conditions.get('change_types', ['new_ports', 'closed_ports'])
+
+        if not self.scan_db:
+            return alerts
+
+        try:
+            history = self.scan_db.get_scan_history(limit=5)
+            if len(history) < 2:
+                return alerts
+
+            prev_scan_id = history[-1]['id']
+            current_scan_id = history[0]['id']
+
+            if current_scan_id == prev_scan_id:
+                return alerts
+
+            diff = self.scan_db.compare_scans(prev_scan_id, current_scan_id)
+            port_changes = diff.get('port_changes', {})
+
+            for host, changes in port_changes.items():
+                if 'new_ports' in change_types:
+                    for port_info in changes.get('new_ports', []):
+                        port = port_info.get('port')
+                        service = port_info.get('service', 'unknown')
+                        alert = Alert(
+                            id=f"{rule.id}_{host}_{port}_new_{int(datetime.now().timestamp())}",
+                            rule_id=rule.id,
+                            title=f"Nuevo Puerto Abierto: {host}:{port}",
+                            message=f"Puerto {port} ({service}) recién abierto en {host}",
+                            severity=rule.severity,
+                            host=host,
+                            port=port,
+                            service=service,
+                            data={'host': host, 'port': port, 'change_type': 'new_port',
+                                  'service': service, 'previous_scan_id': prev_scan_id},
+                            timestamp=datetime.now().isoformat()
+                        )
+                        alerts.append(alert)
+
+                if 'closed_ports' in change_types:
+                    for port_info in changes.get('closed_ports', []):
+                        port = port_info.get('port')
+                        service = port_info.get('service', 'unknown')
+                        alert = Alert(
+                            id=f"{rule.id}_{host}_{port}_closed_{int(datetime.now().timestamp())}",
+                            rule_id=rule.id,
+                            title=f"Puerto Cerrado: {host}:{port}",
+                            message=f"Puerto {port} ({service}) cerrado en {host} (estaba abierto en escaneo anterior)",
+                            severity=rule.severity,
+                            host=host,
+                            port=port,
+                            service=service,
+                            data={'host': host, 'port': port, 'change_type': 'closed_port',
+                                  'service': service, 'previous_scan_id': prev_scan_id},
+                            timestamp=datetime.now().isoformat()
+                        )
+                        alerts.append(alert)
+
+        except Exception as e:
+            self.logger.error(f"Error evaluando regla de cambios en puertos: {e}")
+
+        return alerts
     
     def save_alert(self, alert: Alert):
         """Guarda una alerta en la base de datos."""
